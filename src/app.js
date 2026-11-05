@@ -7,6 +7,7 @@ const config = require('./config');
 const { logger } = require('./shared/logger');
 const requestId = require('./shared/middleware/requestId');
 const { notFoundHandler, errorHandler } = require('./shared/middleware/errorHandler');
+const postgres = require('./db/postgres');
 
 function createApp() {
   const app = express();
@@ -22,8 +23,26 @@ function createApp() {
 
   app.use(express.json({ limit: '100kb' }));
 
+  // Liveness: the process is up.
   app.get('/health', (req, res) => {
     res.json({ success: true, data: { status: 'ok' } });
+  });
+
+  // Readiness: the process can reach its databases.
+  app.get('/health/ready', async (req, res) => {
+    const checks = {};
+    try {
+      await postgres.ping();
+      checks.postgres = 'ok';
+    } catch (err) {
+      req.log.error({ err }, 'Postgres readiness check failed');
+      checks.postgres = 'unreachable';
+    }
+    const ready = Object.values(checks).every((v) => v === 'ok');
+    res.status(ready ? 200 : 503).json({
+      success: ready,
+      data: { status: ready ? 'ready' : 'not_ready', checks },
+    });
   });
 
   // Module routers mount under /api/v1 as they are built, e.g.:

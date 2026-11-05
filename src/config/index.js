@@ -1,4 +1,4 @@
-require('dotenv').config();
+require('./loadEnv');
 const { z } = require('zod');
 
 // Validate every env var once at boot. A missing secret stops the app here,
@@ -10,7 +10,10 @@ const schema = z.object({
   CORS_ORIGINS: z.string().default(''),
 
   MONGO_URI: z.string().min(1),
+  // App traffic uses the pooled URL. Migrations use the direct (unpooled) URL
+  // when one is set, as Neon recommends; locally both can be the same.
   DATABASE_URL: z.string().min(1),
+  DATABASE_URL_UNPOOLED: z.string().optional(),
   REDIS_URL: z.string().min(1),
 
   JWT_ACCESS_SECRET: z.string().min(16),
