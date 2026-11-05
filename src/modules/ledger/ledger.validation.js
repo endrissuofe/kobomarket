@@ -6,6 +6,7 @@ const { TRANSACTION_TYPES, DIRECTIONS } = require('./ledger.constants');
 
 const TYPES = new Set(Object.values(TRANSACTION_TYPES));
 const DIRS = new Set(Object.values(DIRECTIONS));
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 /**
  * @typedef {{ accountId: string, direction: 'debit'|'credit', amountKobo: number }} Entry
@@ -48,8 +49,9 @@ function validatePosting(posting) {
 
   entries.forEach((entry, i) => {
     const { accountId, direction, amountKobo } = entry || {};
-    if (typeof accountId !== 'string' || accountId === '') {
-      problems.push({ path: `entries.${i}.accountId`, message: 'accountId is required' });
+    // A malformed UUID would make Postgres abort the caller's transaction, so reject it here.
+    if (typeof accountId !== 'string' || !UUID.test(accountId)) {
+      problems.push({ path: `entries.${i}.accountId`, message: 'accountId must be a UUID' });
     }
     if (!DIRS.has(direction)) {
       problems.push({
