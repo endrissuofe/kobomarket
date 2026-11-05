@@ -16,6 +16,18 @@ docker compose exec api npm run seed
 - Health: http://localhost:3000/health
 - API docs: http://localhost:3000/api-docs (coming in Week 4)
 
+### Running without Docker
+
+Requires **Node.js 22** (newer major versions need a newer macOS).
+
+```bash
+cp .env.example .env   # then switch to Option B in the Databases section
+npm install
+npm run migrate
+npm run dev            # API
+npm run dev:worker     # background jobs, in a second terminal
+```
+
 ## Project structure
 
 ```text

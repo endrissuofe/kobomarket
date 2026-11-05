@@ -14,3 +14,23 @@ jobs:
       - run: npm ci
       - run: npm run lint
       - run: npm run test:unit
+
+  # Proves the README quick start works on a clean machine:
+  # docker compose up must start everything and the API must answer.
+  docker-smoke:
+    runs-on: ubuntu-latest
+    needs: test
+    steps:
+      - uses: actions/checkout@v4
+      - run: cp .env.example .env
+      - run: docker compose up -d --build
+      - name: Wait for the API health check
+        run: |
+          for i in $(seq 1 30); do
+            if curl -fsS http://localhost:3000/health; then exit 0; fi
+            sleep 3
+          done
+          docker compose logs api
+          exit 1
+      - if: always()
+        run: docker compose down -v
