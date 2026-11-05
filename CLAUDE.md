@@ -42,5 +42,10 @@ Node.js 22 (CommonJS) · Express · Knex + `pg` on PostgreSQL (Neon) · Mongoose
 
 - [x] Scaffold, config validation, logger with request IDs, error middleware, money helpers, CI with Docker smoke test
 - [x] Postgres wired (pooled for app, direct for migrations), `/health/ready`
-- [ ] **Next:** Week 1 ledger migrations — `accounts`, `transactions`, `ledger_entries` (+ append-only trigger, balanced-transaction check), `settings`, `outbox_events`, `idempotency_keys`; seed system accounts; `LedgerService.post()` with unit + integration tests; real `npm run audit:ledger`
-- [ ] Auth (MongoDB), RBAC, vendors, products (CRUD + search, cursor pagination)
+- [x] Week 1 ledger: migrations for `accounts`, `transactions`, `ledger_entries` (UPDATE/DELETE/TRUNCATE blocked on entries and transactions; deferred balanced check), system accounts, `settings` (+ defaults), `outbox_events`, `idempotency_keys`; `LedgerService.post()` (`src/modules/ledger`); unit, integration and concurrency tests; real `npm run audit:ledger` (also runs in CI)
+- [ ] **Next:** Auth (MongoDB), RBAC, vendors, products (CRUD + search, cursor pagination)
+- [ ] Later: separate Neon `test` branch for integration tests (they currently run against `production`); restricted app DB role with UPDATE/DELETE revoked on ledger tables (the app connects as table owner today, so the trigger is the real guard)
+
+## Ledger testing note
+
+The ledger is append-only and TRUNCATE is blocked, so tests never wipe tables. Each test opens its own wallets with a unique owner id (`tests/helpers/ledger.js`) and funds them through `LedgerService.post()`. Assert on your own accounts, not on global counts.
