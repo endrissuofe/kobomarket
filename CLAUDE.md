@@ -1,6 +1,8 @@
 # KoboMarket — project rules for Claude Code
 
-Individual 4-week final project: a multi-vendor marketplace **backend** with wallets, a double-entry ledger and escrow. No frontend is graded. The assignment brief is the source of truth; the full system design lives in the "KoboMarket — System Design" doc (https://claude.ai/artifact/5ip2hL4U3dCExhzuhjS7FZ).
+Individual 4-week final project: a multi-vendor marketplace **backend** with wallets, a double-entry ledger and escrow. No frontend is graded. The assignment brief is the source of truth.
+
+**Start every session by reading `docs/HANDOVER.md`** (design decisions, what is built, money flows, state machine, the ordered plan to finish). The brief is at `docs/brief.md`, kept local and gitignored because the repo is public; if it is missing, ask Drix for it.
 
 ## Stack
 

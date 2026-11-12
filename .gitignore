@@ -9,3 +9,5 @@ logs/
 .vscode/
 .idea/
 .neon
+# Assignment brief: kept locally for Claude Code, not published (public repo)
+docs/brief.md
