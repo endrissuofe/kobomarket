@@ -9,3 +9,5 @@ logs/
 .vscode/
 .idea/
 .neon
+# Assignment brief: kept locally, not published (public repo)
+docs/brief.md
