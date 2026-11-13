@@ -16,7 +16,16 @@ const ANY_ID = '0123456789abcdef01234567';
 
 // Every row has three values. With fewer, Jest's test.each would pass its
 // `done` callback as the missing argument and wait for it forever.
+const ANY_UUID = '00000000-0000-4000-8000-000000000000';
+
 const ADMIN_ROUTES = [
+  ['get', '/api/v1/disputes', undefined],
+  ['get', `/api/v1/disputes/${ANY_UUID}`, undefined],
+  [
+    'patch',
+    `/api/v1/disputes/${ANY_UUID}/resolve`,
+    { resolution: 'FULL_REFUND', note: 'refund it' },
+  ],
   ['get', '/api/v1/admin/vendors', undefined],
   ['patch', `/api/v1/admin/vendors/${ANY_ID}/approve`, undefined],
   ['patch', `/api/v1/admin/vendors/${ANY_ID}/reject`, { reason: 'not allowed anyway' }],
@@ -30,9 +39,10 @@ const VENDOR_ROUTES = [
   ['get', '/api/v1/vendors/me/sub-orders', undefined],
   [
     'patch',
-    '/api/v1/sub-orders/00000000-0000-4000-8000-000000000000/ship',
-    { courierName: 'GIG', trackingNumber: 'T-1' },
+    `/api/v1/disputes/${ANY_UUID}/respond`,
+    { response: 'It left our store intact', evidence: [] },
   ],
+  ['patch', `/api/v1/sub-orders/${ANY_UUID}/ship`, { courierName: 'GIG', trackingNumber: 'T-1' }],
 ];
 
 function call([method, path, body], headers = {}) {

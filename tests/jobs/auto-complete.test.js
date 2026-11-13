@@ -44,7 +44,8 @@ describe('auto-complete job', () => {
   // Required test 12
   test('a disputed sub-order is skipped, even when its timeout has passed', async () => {
     const id = await shippedSubOrder();
-    // Disputes arrive in a later step; SHIPPED -> DISPUTED is a valid move.
+    // Set directly to keep this job test self-contained; disputes.test.js
+    // covers the same through POST /sub-orders/:id/disputes.
     await postgres.db('sub_orders').where({ id }).update({ status: 'DISPUTED' });
 
     const result = await runAutoComplete();
