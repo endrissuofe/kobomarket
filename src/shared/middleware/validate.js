@@ -11,7 +11,11 @@ module.exports = function validate(schemas) {
       if (!schemas[part]) continue;
       const result = schemas[part].safeParse(req[part] ?? {});
       if (!result.success) {
-        return next(validationError(result.error.flatten().fieldErrors));
+        // Field problems by field name; problems with the object as a whole
+        // (e.g. unknown keys under .strict()) under _form.
+        const { fieldErrors, formErrors } = result.error.flatten();
+        const details = formErrors.length ? { ...fieldErrors, _form: formErrors } : fieldErrors;
+        return next(validationError(details));
       }
       // req.query is a getter in some Express versions; define it explicitly.
       Object.defineProperty(req, part, { value: result.data, writable: true, enumerable: true });
