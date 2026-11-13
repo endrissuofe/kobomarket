@@ -6,6 +6,8 @@ const { vendorsController } = require('./vendors.controller');
 const schemas = require('./vendors.schemas');
 const { productsController } = require('../products/products.controller');
 const productSchemas = require('../products/products.schemas');
+const { ordersController } = require('../orders/orders.controller');
+const orderSchemas = require('../orders/orders.schemas');
 
 const router = Router();
 
@@ -18,6 +20,13 @@ router.get(
   requireRole('vendor'),
   validate({ query: productSchemas.mineQuery }),
   productsController.listMine,
+);
+router.get(
+  '/me/sub-orders',
+  requireAuth,
+  requireRole('vendor'),
+  validate({ query: orderSchemas.vendorSubOrdersQuery }),
+  ordersController.listVendorSubOrders,
 );
 router.get('/:id', validate({ params: idParams }), vendorsController.getPublic);
 

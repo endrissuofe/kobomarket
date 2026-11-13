@@ -147,23 +147,54 @@ const ordersRepository = {
     return subs.map((s) => ({ ...s, items: items.filter((i) => i.subOrderId === s.id) }));
   },
 
-  /** Buyer's orders, newest first, keyset on (created_at, id). */
+  /**
+   * Buyer's orders, newest first, keyset on (created_at, id). The cursor
+   * carries created_at as Postgres text: a JS Date would drop the
+   * microseconds and rows could repeat or be skipped.
+   */
   async listOrdersForBuyer(conn, buyerId, { after, limit }) {
     const query = conn('orders')
       .where({ buyer_id: buyerId })
+      .select('*', conn.raw('created_at::text AS created_at_text'))
       .orderBy([
         { column: 'created_at', order: 'desc' },
         { column: 'id', order: 'desc' },
       ])
       .limit(limit);
     if (after) {
-      query.where((q) =>
-        q
-          .where('created_at', '<', after.createdAt)
-          .orWhere((q2) => q2.where('created_at', '=', after.createdAt).where('id', '<', after.id)),
-      );
+      query.whereRaw('(created_at, id) < (?::timestamptz, ?::uuid)', [after.t, after.id]);
     }
-    return (await query).map(toOrder);
+    return (await query).map((row) => ({ ...toOrder(row), cursorTime: row.created_at_text }));
+  },
+
+  /** A vendor's sub-orders, newest first, optionally by status; same keyset. */
+  async listSubOrdersForVendor(conn, vendorId, { status, after, limit }) {
+    const query = conn('sub_orders')
+      .where({ vendor_id: vendorId })
+      .select('*', conn.raw('created_at::text AS created_at_text'))
+      .orderBy([
+        { column: 'created_at', order: 'desc' },
+        { column: 'id', order: 'desc' },
+      ])
+      .limit(limit);
+    if (status) query.where({ status });
+    if (after) {
+      query.whereRaw('(created_at, id) < (?::timestamptz, ?::uuid)', [after.t, after.id]);
+    }
+    const subs = (await query).map((row) => ({
+      ...toSubOrder(row),
+      cursorTime: row.created_at_text,
+    }));
+    if (subs.length === 0) return [];
+    const items = (
+      await conn('order_items')
+        .whereIn(
+          'sub_order_id',
+          subs.map((x) => x.id),
+        )
+        .orderBy('id')
+    ).map(toItem);
+    return subs.map((x) => ({ ...x, items: items.filter((i) => i.subOrderId === x.id) }));
   },
 
   async historyOf(conn, subOrderId) {

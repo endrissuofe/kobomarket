@@ -8,6 +8,22 @@ const ordersController = {
     });
     res.status(201).json({ success: true, data: { order } });
   }),
+
+  list: asyncHandler(async (req, res) => {
+    res.json({ success: true, data: await ordersService.listOrdersForBuyer(req.user, req.query) });
+  }),
+
+  get: asyncHandler(async (req, res) => {
+    const order = await ordersService.getOrderForBuyer(req.user, req.params.id);
+    res.json({ success: true, data: { order } });
+  }),
+
+  listVendorSubOrders: asyncHandler(async (req, res) => {
+    res.json({
+      success: true,
+      data: await ordersService.listSubOrdersForVendor(req.user, req.query),
+    });
+  }),
 };
 
 module.exports = { ordersController };
