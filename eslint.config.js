@@ -17,6 +17,7 @@ module.exports = [
     // Money modules: floats are banned. All amounts are integer kobo.
     files: [
       'src/modules/ledger/**',
+      'src/modules/products/**',
       'src/modules/wallet/**',
       'src/modules/orders/**',
       'src/modules/payouts/**',
