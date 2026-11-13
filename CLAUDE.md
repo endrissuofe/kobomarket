@@ -10,10 +10,13 @@ Node.js 22 (CommonJS) · Express · Knex + `pg` on PostgreSQL (Neon) · Mongoose
 
 ## Environment
 
-- Developer machine: 2015 MacBook Pro on macOS 12 Monterey. **No Docker locally.** Stay on Node 22 (`.nvmrc`).
+- Drix works from more than one machine. Every machine starts from a fresh clone, so nothing outside git exists until it is recreated: `.env`, `.env.local`, `.neon` and `docs/brief.md` must be set up per machine (see `docs/HANDOVER.md` → "New machine setup").
+  - Ubuntu 24.04 (current): Node 22 via nvm. MongoDB 8 runs locally (`mongodb://127.0.0.1:27017/kobomarket`). Use `127.0.0.1`, not `localhost`: the machine's IPv6 is broken and `localhost` can resolve to `::1`. Docker Engine can run here if installed.
+  - 2015 MacBook Pro, macOS 12: no Docker. Use cloud MongoDB (Atlas).
+- Stay on Node 22 (`.nvmrc`) on every machine.
 - Postgres is Neon. `neon env pull --project-id curly-resonance-15703720 --branch production` writes `.env.local` with `DATABASE_URL` (pooled, app traffic) and `DATABASE_URL_UNPOOLED` (direct, migrations).
 - `src/config/loadEnv.js` loads `.env.local` first, then `.env`. Never commit either.
-- Docker is verified only in GitHub Actions (`docker-smoke` job runs `docker compose up`, checks `/health/ready`, runs Postgres integration tests). Check the Actions tab after every push.
+- Docker is always verified in GitHub Actions (`docker-smoke` job runs `docker compose up`, checks `/health/ready`, runs Postgres integration tests). Check the Actions tab after every push.
 
 ## Hard rules (each one is a grading deduction or core requirement)
 

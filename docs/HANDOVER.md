@@ -6,6 +6,22 @@ Read this after `CLAUDE.md`. `CLAUDE.md` holds the rules; this file holds the de
 - **Design doc (human copy):** https://claude.ai/artifact/5ip2hL4U3dCExhzuhjS7FZ. Everything you need from it is copied below.
 - **Repo:** https://github.com/endrissuofe/kobomarket (public). CI: `test` (lint + unit) and `docker-smoke` (compose up, `/health/ready`, integration + concurrency tests, `audit:ledger`).
 
+## 0. New machine setup
+
+A fresh clone has none of the git-ignored files. Check for each one first; if any is missing, walk Drix through recreating it (he runs commands that need a browser or a secret).
+
+| Missing                  | How to recreate it                                                                                                                                                                                                                                                                          |
+| ------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Node 22                  | `nvm install 22 && nvm use` (repo has `.nvmrc`)                                                                                                                                                                                                                                             |
+| `docs/brief.md`          | Drix saves the assignment brief there (he has a copy outside git)                                                                                                                                                                                                                           |
+| `.env.local` (Neon URLs) | `npm i -g neon@latest`, `neon login` (browser), then `neon env pull --project-id curly-resonance-15703720 --branch production`                                                                                                                                                              |
+| `.env`                   | `cp .env.example .env`, set `JWT_ACCESS_SECRET` to `openssl rand -hex 32`, then switch to the "Option B" database lines: `MONGO_URI` for this machine (local MongoDB: `mongodb://127.0.0.1:27017/kobomarket`, otherwise an Atlas URL); keep a placeholder `REDIS_URL` until Redis is needed |
+| `.neon`                  | Not needed day to day; `neon env pull` takes the project and branch as flags. `neon init` recreates it if wanted                                                                                                                                                                            |
+
+Then prove the setup before writing code: `npm ci`, `npm run lint`, `npm run migrate` (expect "Already up to date"), `npm test`, `npm run audit:ledger` (expect PASS).
+
+Linux notes (Ubuntu 24.04): IPv6 on this machine is broken, so use `127.0.0.1` rather than `localhost`; if `npm`, `neon` or `curl` hang on a host lookup, prefer IPv4 (`export NODE_OPTIONS=--dns-result-order=ipv4first`). Local `mongod` needs its systemd `GLIBC_TUNABLES` override to start (already configured on Drix's machine).
+
 ## 1. Where the project stands (12 Nov 2026)
 
 Started 5 Nov; the four-week clock ends around **3 Dec 2026**. Week 1's progress check is due now.
@@ -158,14 +174,14 @@ One `TRANSITIONS` map in `src/modules/orders/state-machine.js`; services call `a
 
 ## 10. Plan to finish (in this order)
 
-1. **Mongo wiring** — `src/db/mongo.js`, readiness check includes Mongo, Mongo integration test in CI (compose already has `mongo`). Drix needs a MongoDB Atlas free cluster URL in `.env.local`/`.env` locally.
+1. **Mongo wiring** — `src/db/mongo.js`, readiness check includes Mongo, Mongo integration test in CI (compose already has `mongo`). Locally: the Ubuntu machine's own MongoDB (`127.0.0.1`), or an Atlas URL on the Mac.
 2. **Auth** (Module A) — register (+ wallet), verify email, login, refresh rotation + reuse detection, logout, forgot/reset, login rate limit. Tests 1, 2.
 3. **RBAC + vendors** (Module B) — apply, admin approve/reject, `GET /vendors/:id`. Test 3.
 4. **Products** — CRUD with variants, soft delete, text search, filters, sort, cursor pagination.
 5. **Wallet + funding** (Module E) — payment provider interface (Paystack + mock), `POST /wallet/fund` (idempotent), webhook, `GET /wallet`, `/wallet/transactions`. Tests 4, 5.
 6. **Cart** (Module C).
 7. **Checkout + orders** (Module F) — tables, state machine, checkout with compensation, ship, confirm, cancel, release. Tests 6–11.
-8. **Redis + BullMQ worker** — outbox relay, auto-complete (skips DISPUTED), wallet reconciler, notifications. Test 12. Drix needs an Upstash Redis URL locally.
+8. **Redis + BullMQ worker** — outbox relay, auto-complete (skips DISPUTED), wallet reconciler, notifications. Test 12. Locally: `sudo apt install redis-server` on Ubuntu (`redis://127.0.0.1:6379`), or an Upstash URL on the Mac.
 9. **Disputes** (Module G) — open, vendor reply, admin resolve. Test 13.
 10. **Payouts** (Module H) — request, processor job, success/failure. Test 14 + double-payout race.
 11. **Notifications** (Module I) and **Admin + reports** (Module J) — reports in SQL, not JS loops.
