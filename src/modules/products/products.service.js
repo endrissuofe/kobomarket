@@ -2,7 +2,7 @@ const { productsRepository } = require('./products.repository');
 const { vendorsRepository } = require('../vendors/vendors.repository');
 const { VENDOR_STATUS } = require('../vendors/vendor.model');
 const { createWithUniqueSlug } = require('../../shared/text/slug');
-const { conflict, forbidden, notFound } = require('../../shared/errors');
+const { conflict, forbidden, notFound, validationError } = require('../../shared/errors');
 
 /**
  * The caller's store. The vendor role is only granted on approval, but the
@@ -48,8 +48,45 @@ async function getBySlug(slug) {
   return product;
 }
 
+/**
+ * Partial update by the owning vendor. Another vendor's product is a 404, so
+ * vendors cannot probe each other's catalogue.
+ *
+ * Stock is set to the absolute number sent. If a checkout decrements stock
+ * between the vendor reading and saving, the vendor's number wins; this is a
+ * known limitation (a delta endpoint using $inc would close it).
+ */
+async function update(user, productId, body) {
+  const store = await approvedStoreOf(user);
+  const current = await productsRepository.findOwned(productId, store._id);
+  if (!current) throw notFound('Product');
+
+  const variantsAfter = body.variants ?? current.variants;
+  const sendsBase = body.priceKobo !== undefined || body.stock !== undefined;
+  if (variantsAfter.length > 0 && sendsBase) {
+    throw validationError({
+      priceKobo: ['This product has variants; set price and stock on each variant'],
+    });
+  }
+  if (body.variants?.length === 0 && (body.priceKobo === undefined || body.stock === undefined)) {
+    throw validationError({ priceKobo: ['Removing all variants needs priceKobo and stock'] });
+  }
+
+  const set = body.variants?.length ? deriveFromVariants(body) : body;
+  const updated = await productsRepository.updateOwned(productId, store._id, set);
+  if (!updated) throw notFound('Product');
+  return updated;
+}
+
+/** Soft delete: hidden everywhere, kept for order history. */
+async function remove(user, productId) {
+  const store = await approvedStoreOf(user);
+  const deleted = await productsRepository.softDeleteOwned(productId, store._id);
+  if (!deleted) throw notFound('Product');
+}
+
 module.exports = {
-  productsService: { create, getBySlug },
+  productsService: { create, getBySlug, update, remove },
   approvedStoreOf,
   deriveFromVariants,
 };
