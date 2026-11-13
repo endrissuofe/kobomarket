@@ -1,8 +1,16 @@
-const { productsRepository } = require('./products.repository');
+const { productsRepository, LIVE } = require('./products.repository');
+const { decodeCursor, paginate } = require('../../shared/http/cursor');
+const { objectId } = require('../../shared/http/schemas');
 const { vendorsRepository } = require('../vendors/vendors.repository');
 const { VENDOR_STATUS } = require('../vendors/vendor.model');
 const { createWithUniqueSlug } = require('../../shared/text/slug');
-const { conflict, forbidden, notFound, validationError } = require('../../shared/errors');
+const {
+  badRequest,
+  conflict,
+  forbidden,
+  notFound,
+  validationError,
+} = require('../../shared/errors');
 
 /**
  * The caller's store. The vendor role is only granted on approval, but the
@@ -85,8 +93,82 @@ async function remove(user, productId) {
   if (!deleted) throw notFound('Product');
 }
 
+// --- Listing ---
+
+// Each sort is one field plus _id as the tie-break, so the order is total and
+// a cursor (last value, last _id) resumes exactly where the page ended:
+// equal prices or ratings never repeat or get skipped.
+const SORTS = {
+  newest: { field: null, dir: -1 },
+  price_asc: { field: 'priceKobo', dir: 1 },
+  price_desc: { field: 'priceKobo', dir: -1 },
+  rating: { field: 'rating.avg', dir: -1 },
+};
+
+const valueAt = (doc, path) => path.split('.').reduce((v, key) => v?.[key], doc);
+
+function keysetCondition({ field, dir }, cursor) {
+  const op = dir === 1 ? '$gt' : '$lt';
+  if (!field) return { _id: { [op]: cursor.id } };
+  return {
+    $or: [{ [field]: { [op]: cursor.v } }, { [field]: cursor.v, _id: { [op]: cursor.id } }],
+  };
+}
+
+/** Decode a cursor and check it belongs to this sort and is well formed. */
+function readCursor(raw, sortName) {
+  const cursor = decodeCursor(raw);
+  if (!cursor) return null;
+  const valid =
+    cursor.s === sortName &&
+    objectId.safeParse(cursor.id).success &&
+    (SORTS[sortName].field === null || typeof cursor.v === 'number');
+  if (!valid) throw badRequest('Invalid cursor for this sort');
+  return cursor;
+}
+
+async function listPage(baseFilter, { sort: sortName, limit, cursor: rawCursor }) {
+  const sort = SORTS[sortName];
+  const cursor = readCursor(rawCursor, sortName);
+  const filter = cursor ? { $and: [baseFilter, keysetCondition(sort, cursor)] } : baseFilter;
+  const order = sort.field ? { [sort.field]: sort.dir, _id: sort.dir } : { _id: sort.dir };
+
+  const rows = await productsRepository.find({ filter, sort: order, limit: limit + 1 });
+  return paginate(rows, limit, (doc) => ({
+    s: sortName,
+    id: String(doc._id),
+    ...(sort.field && { v: valueAt(doc, sort.field) }),
+  }));
+}
+
+/**
+ * Public catalogue: full-text search on name, tags and description; filters
+ * on category, price range, vendor and rating. Search narrows the results;
+ * the order is always the chosen sort (a relevance score cannot be a cursor).
+ */
+function list(query) {
+  const filter = { ...LIVE };
+  if (query.q) filter.$text = { $search: query.q };
+  if (query.category) filter.category = query.category;
+  if (query.vendorId) filter.vendorId = query.vendorId;
+  if (query.minPrice !== undefined || query.maxPrice !== undefined) {
+    filter.priceKobo = {
+      ...(query.minPrice !== undefined && { $gte: query.minPrice }),
+      ...(query.maxPrice !== undefined && { $lte: query.maxPrice }),
+    };
+  }
+  if (query.minRating !== undefined) filter['rating.avg'] = { $gte: query.minRating };
+  return listPage(filter, query);
+}
+
+/** The vendor's own catalogue, including inactive products (not deleted ones). */
+async function listMine(user, query) {
+  const store = await approvedStoreOf(user);
+  return listPage({ vendorId: store._id, deletedAt: null }, query);
+}
+
 module.exports = {
-  productsService: { create, getBySlug, update, remove },
+  productsService: { create, getBySlug, update, remove, list, listMine },
   approvedStoreOf,
   deriveFromVariants,
 };

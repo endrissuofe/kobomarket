@@ -8,6 +8,7 @@ const schemas = require('./products.schemas');
 const router = Router();
 const vendorOnly = [requireAuth, requireRole('vendor')];
 
+router.get('/', validate({ query: schemas.listQuery }), productsController.list);
 router.get('/:slug', validate({ params: schemas.slugParams }), productsController.getBySlug);
 router.post('/', ...vendorOnly, validate({ body: schemas.createBody }), productsController.create);
 router.patch(

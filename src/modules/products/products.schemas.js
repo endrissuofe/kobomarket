@@ -1,4 +1,5 @@
 const { z } = require('zod');
+const { objectId, pageQuery } = require('../../shared/http/schemas');
 
 // Money inputs are JSON integers in kobo. Strings and decimals are refused;
 // nothing is coerced, so "1500" or 15.5 can never sneak in as a price.
@@ -100,6 +101,33 @@ const updateBody = z
   .refine((body) => Object.keys(body).length > 0, { message: 'Nothing to update' })
   .superRefine((body, ctx) => checkVariants(body, ctx, { requireBase: false }));
 
+const SORTS = ['newest', 'price_asc', 'price_desc', 'rating'];
+
+// Query strings arrive as text, so numbers are coerced, but still must be
+// whole kobo: ?minPrice=10.5 is refused.
+const koboQuery = z.coerce
+  .number()
+  .int('Prices are whole kobo')
+  .min(0)
+  .max(Number.MAX_SAFE_INTEGER);
+
+const listQuery = pageQuery
+  .extend({
+    q: z.string().trim().min(1).max(100).optional(),
+    category: z.string().trim().toLowerCase().min(1).max(50).optional(),
+    minPrice: koboQuery.optional(),
+    maxPrice: koboQuery.optional(),
+    vendorId: objectId.optional(),
+    minRating: z.coerce.number().min(0).max(5).optional(),
+    sort: z.enum(SORTS).default('newest'),
+  })
+  .refine((q) => q.minPrice === undefined || q.maxPrice === undefined || q.minPrice <= q.maxPrice, {
+    message: 'minPrice must not be above maxPrice',
+    path: ['minPrice'],
+  });
+
+const mineQuery = pageQuery.extend({ sort: z.enum(SORTS).default('newest') });
+
 const slugParams = z.object({ slug: z.string().trim().min(1).max(100) });
 
-module.exports = { createBody, updateBody, slugParams };
+module.exports = { createBody, updateBody, listQuery, mineQuery, slugParams };
