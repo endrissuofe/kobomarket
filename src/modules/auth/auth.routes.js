@@ -11,5 +11,6 @@ router.post(
   validate({ body: schemas.verifyEmailBody }),
   authController.verifyEmail,
 );
+router.post('/login', validate({ body: schemas.loginBody }), authController.login);
 
 module.exports = router;

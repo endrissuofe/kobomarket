@@ -13,4 +13,7 @@ const registerBody = z.object({
 
 const verifyEmailBody = z.object({ token });
 
-module.exports = { registerBody, verifyEmailBody };
+// Login does not re-check password rules: old passwords may predate them.
+const loginBody = z.object({ email, password: z.string().min(1).max(128) });
+
+module.exports = { registerBody, verifyEmailBody, loginBody };
