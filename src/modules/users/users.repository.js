@@ -19,6 +19,10 @@ const usersRepository = {
     return User.findOne({ email: email.toLowerCase() });
   },
 
+  updateProfile(id, { name }) {
+    return User.findByIdAndUpdate(id, { $set: { name } }, { new: true, runValidators: true });
+  },
+
   setWalletStatus(id, walletStatus) {
     return User.updateOne({ _id: id }, { $set: { walletStatus } });
   },
