@@ -50,3 +50,13 @@ migrations/   seeds/   scripts/   tests/   docs/
 - Cross-database consistency, concurrency and idempotency
 - Running tests and `npm run audit:ledger`
 - Known limitations
+
+## Assumptions and design decisions
+
+Points the brief leaves open, and what KoboMarket does about them.
+
+- **Vendors cannot buy their own products.** The brief allows one account to be both buyer and vendor but says nothing about self-purchase. Blocking it (at add-to-cart and again at checkout) stops a vendor faking sales to climb the "top vendors" report.
+- **Frozen users can still fund their wallet.** The brief blocks orders and withdrawals for frozen accounts; money coming in is harmless.
+- **A rejected vendor may apply again**, which puts the same application back to PENDING. Only approved stores are visible publicly.
+- **Product stock is set absolutely by the vendor** (`PATCH /products/:id`). If a checkout decrements stock between the vendor reading and saving, the vendor's number wins. A delta endpoint using `$inc` would close this; listed under known limitations.
+- **No relevance ordering for product search.** Search narrows results and the chosen sort orders them, because a text-relevance score cannot be used as a pagination cursor.
