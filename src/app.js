@@ -88,6 +88,7 @@ function createApp(options = {}) {
   app.use('/api/v1/products', require('./modules/products/products.routes'));
   app.use('/api/v1/wallet', require('./modules/wallet/wallet.routes'));
   app.use('/api/v1/cart', require('./modules/cart/cart.routes'));
+  app.use('/api/v1/orders', require('./modules/orders/orders.routes'));
 
   app.use(notFoundHandler);
   app.use(errorHandler);

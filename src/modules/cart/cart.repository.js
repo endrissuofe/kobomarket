@@ -67,6 +67,19 @@ const cartRepository = {
     ).lean();
   },
 
+  /** The buyer has seen the new price: store it so the line is no longer stale. */
+  setLinePrice(userId, itemId, addedPriceKobo) {
+    return Cart.updateOne(
+      { userId, 'items._id': itemId },
+      { $set: { 'items.$.addedPriceKobo': addedPriceKobo } },
+    );
+  },
+
+  /** Remove the lines that were just ordered (lines added meanwhile stay). */
+  removeLines(userId, itemIds) {
+    return Cart.updateOne({ userId }, { $pull: { items: { _id: { $in: itemIds } } } });
+  },
+
   findLine(userId, itemId) {
     return Cart.findOne({ userId, 'items._id': itemId }, { 'items.$': 1 }).lean();
   },
