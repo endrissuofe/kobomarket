@@ -18,4 +18,15 @@ const loginBody = z.object({ email, password: z.string().min(1).max(128) });
 
 const refreshBody = z.object({ refreshToken: token });
 
-module.exports = { registerBody, verifyEmailBody, loginBody, refreshBody };
+const forgotPasswordBody = z.object({ email });
+
+const resetPasswordBody = z.object({ token, password });
+
+module.exports = {
+  registerBody,
+  verifyEmailBody,
+  loginBody,
+  refreshBody,
+  forgotPasswordBody,
+  resetPasswordBody,
+};
