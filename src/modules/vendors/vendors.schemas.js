@@ -1,4 +1,6 @@
 const { z } = require('zod');
+const { pageQuery } = require('../../shared/http/schemas');
+const { VENDOR_STATUS } = require('./vendor.model');
 
 const bank = z.object({
   // Nigerian bank codes as Paystack lists them, e.g. "058" or "50211".
@@ -20,4 +22,10 @@ const applyBody = z.object({
   bank,
 });
 
-module.exports = { applyBody };
+const listQuery = pageQuery.extend({
+  status: z.enum(Object.values(VENDOR_STATUS)).optional(),
+});
+
+const rejectBody = z.object({ reason: z.string().trim().min(5).max(500) });
+
+module.exports = { applyBody, listQuery, rejectBody };

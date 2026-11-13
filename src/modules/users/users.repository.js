@@ -28,6 +28,11 @@ const usersRepository = {
     return User.updateOne({ _id: id, emailVerifiedAt: null }, { $set: { emailVerifiedAt: at } });
   },
 
+  /** Idempotent: adding a role the user already has changes nothing. */
+  addRole(id, role) {
+    return User.updateOne({ _id: id }, { $addToSet: { roles: role } });
+  },
+
   setPasswordHash(id, passwordHash) {
     return User.updateOne({ _id: id }, { $set: { passwordHash } });
   },
