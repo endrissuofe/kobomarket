@@ -91,6 +91,7 @@ function createApp(options = {}) {
   app.use('/api/v1/orders', require('./modules/orders/orders.routes'));
   app.use('/api/v1/sub-orders', require('./modules/orders/sub-orders.routes'));
   app.use('/api/v1/disputes', require('./modules/disputes/disputes.routes'));
+  app.use('/api/v1/payouts', require('./modules/payouts/payouts.routes'));
 
   app.use(notFoundHandler);
   app.use(errorHandler);

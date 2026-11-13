@@ -37,6 +37,8 @@ const VENDOR_ROUTES = [
   ['delete', `/api/v1/products/${ANY_ID}`, undefined],
   ['get', '/api/v1/vendors/me/products', undefined],
   ['get', '/api/v1/vendors/me/sub-orders', undefined],
+  ['post', '/api/v1/payouts', { amountKobo: 100000 }],
+  ['get', '/api/v1/payouts', undefined],
   [
     'patch',
     `/api/v1/disputes/${ANY_UUID}/respond`,
