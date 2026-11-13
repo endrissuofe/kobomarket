@@ -51,6 +51,13 @@ describe('POST /auth/refresh', () => {
       const res = await refresh(token);
       expect(res.status).toBe(401);
     }
+
+    // Access tokens already issued stop working too.
+    const me = await request(app)
+      .get('/api/v1/users/me')
+      .set('Authorization', `Bearer ${phone.accessToken}`);
+    expect(me.status).toBe(401);
+    expect(me.body.error.code).toBe('SESSION_REVOKED');
   });
 
   test('two parallel refreshes with one token: exactly one wins', async () => {
