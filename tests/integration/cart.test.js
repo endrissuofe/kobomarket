@@ -188,3 +188,60 @@ describe('GET /cart flags stale lines', () => {
     expect((await getCart(two)).items).toEqual([]);
   });
 });
+
+describe('PATCH and DELETE /cart/items/:itemId', () => {
+  const patch = (user, itemId, body) =>
+    request(app).patch(`/api/v1/cart/items/${itemId}`).set(user.auth).send(body);
+  const del = (user, itemId) => request(app).delete(`/api/v1/cart/items/${itemId}`).set(user.auth);
+
+  async function cartWithOne(stock = 10) {
+    const buyer = await signIn(app);
+    const p = await makeProduct(app, vendorA, { stock, priceKobo: 30000 });
+    const { cart } = (await add(buyer, { productId: p.id, qty: 1 })).body.data;
+    return { buyer, product: p, itemId: cart.items[0].id };
+  }
+
+  test('sets the qty and returns the reviewed cart', async () => {
+    const { buyer, itemId } = await cartWithOne();
+    const res = await patch(buyer, itemId, { qty: 4 });
+    expect(res.status).toBe(200);
+    expect(res.body.data.cart).toMatchObject({ itemCount: 4, subtotalKobo: 120000 });
+  });
+
+  test('more than the stock is a 409', async () => {
+    const { buyer, itemId } = await cartWithOne(3);
+    const res = await patch(buyer, itemId, { qty: 4 });
+    expect(res.status).toBe(409);
+    expect(res.body.error.details).toEqual({ available: 3 });
+  });
+
+  test('a line whose product was deleted cannot be changed, only removed', async () => {
+    const { buyer, product, itemId } = await cartWithOne();
+    await request(app).delete(`/api/v1/products/${product.id}`).set(vendorA.auth);
+    expect((await patch(buyer, itemId, { qty: 2 })).body.error.code).toBe('ITEM_UNAVAILABLE');
+
+    const res = await del(buyer, itemId);
+    expect(res.status).toBe(200);
+    expect(res.body.data.cart.items).toEqual([]);
+  });
+
+  test("another user's line is a 404 and stays put", async () => {
+    const { buyer, itemId } = await cartWithOne();
+    const intruder = await signIn(app);
+    expect((await patch(intruder, itemId, { qty: 2 })).status).toBe(404);
+    expect((await del(intruder, itemId)).status).toBe(404);
+    expect((await getCart(buyer)).items).toHaveLength(1);
+  });
+
+  test('removing twice is a 404 the second time', async () => {
+    const { buyer, itemId } = await cartWithOne();
+    expect((await del(buyer, itemId)).status).toBe(200);
+    expect((await del(buyer, itemId)).status).toBe(404);
+  });
+
+  test('qty 0 or a decimal is a 422 (use DELETE to remove)', async () => {
+    const { buyer, itemId } = await cartWithOne();
+    expect((await patch(buyer, itemId, { qty: 0 })).status).toBe(422);
+    expect((await patch(buyer, itemId, { qty: 2.5 })).status).toBe(422);
+  });
+});

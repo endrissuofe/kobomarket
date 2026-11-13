@@ -1,0 +1,91 @@
+# OpenAPI fragment for the cart. Merged into /api-docs in plan step 12.
+# Cart prices are display only; checkout reads live prices and stock again.
+paths:
+  /api/v1/cart:
+    get:
+      tags: [Cart]
+      summary: Your cart, checked against live products
+      description: >
+        Each line shows the live unit price and stock and lists its problems:
+        PRICE_CHANGED (live price differs from when it was added),
+        INSUFFICIENT_STOCK, UNAVAILABLE (deleted, inactive or variant removed),
+        OWN_PRODUCT. `ready` is true only when no line has a problem.
+        subtotalKobo is at live prices.
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: Cart
+          content:
+            application/json:
+              example:
+                success: true
+                data:
+                  cart:
+                    items:
+                      - id: 6553…
+                        productId: 6552…
+                        variantSku: null
+                        qty: 2
+                        name: Ankara Tote
+                        vendorId: 6551…
+                        addedPriceKobo: 250000
+                        unitPriceKobo: 250000
+                        lineTotalKobo: 500000
+                        availableStock: 7
+                        problems: []
+                    itemCount: 2
+                    subtotalKobo: 500000
+                    ready: true
+
+  /api/v1/cart/items:
+    post:
+      tags: [Cart]
+      summary: Add an item (adds to the qty if it is already in the cart)
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [productId]
+              additionalProperties: false
+              properties:
+                productId: { type: string }
+                variantSku: { type: string, description: Required when the product has variants }
+                qty: { type: integer, minimum: 1, maximum: 100, default: 1 }
+      responses:
+        '201': { description: The reviewed cart }
+        '403': { description: CANNOT_BUY_OWN_PRODUCT }
+        '404': { description: Product not found or not for sale }
+        '409': { description: INSUFFICIENT_STOCK (details.available) or CART_FULL (50 lines) }
+        '422': { description: VARIANT_REQUIRED, UNKNOWN_VARIANT, QTY_LIMIT or VALIDATION_ERROR }
+
+  /api/v1/cart/items/{itemId}:
+    patch:
+      tags: [Cart]
+      summary: Set a line's qty
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: itemId, in: path, required: true, schema: { type: string } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [qty]
+              properties: { qty: { type: integer, minimum: 1, maximum: 100 } }
+      responses:
+        '200': { description: The reviewed cart }
+        '404': { description: Not in your cart }
+        '409': { description: INSUFFICIENT_STOCK or ITEM_UNAVAILABLE (remove it instead) }
+    delete:
+      tags: [Cart]
+      summary: Remove a line
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: itemId, in: path, required: true, schema: { type: string } }
+      responses:
+        '200': { description: The reviewed cart }
+        '404': { description: Not in your cart }
