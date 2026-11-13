@@ -12,7 +12,11 @@ const { providerError } = require('./errors');
  */
 function createMockProvider({ secretKey, fetchImpl = fetch }) {
   const payments = new Map();
-  let nextId = 1_000_000;
+  // Paystack transaction ids are unique forever, and webhook_events dedupes on
+  // them, so the mock's ids must not restart from the same number when the
+  // process restarts: millisecond clock x 1000 plus a counter.
+  let counter = 0;
+  const nextId = () => Date.now() * 1000 + (counter++ % 1000);
 
   function get(reference) {
     const payment = payments.get(reference);
@@ -41,7 +45,7 @@ function createMockProvider({ secretKey, fetchImpl = fetch }) {
 
     async initialize({ email, amountKobo, reference }) {
       payments.set(reference, {
-        id: nextId++,
+        id: nextId(),
         reference,
         email,
         amountKobo,
