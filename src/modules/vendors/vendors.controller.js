@@ -16,6 +16,23 @@ const vendorsController = {
     const vendor = await vendorsService.getPublic(req.params.id);
     res.json({ success: true, data: { vendor } });
   }),
+
+  // --- Admin ---
+
+  list: asyncHandler(async (req, res) => {
+    const page = await vendorsService.list(req.query);
+    res.json({ success: true, data: page });
+  }),
+
+  approve: asyncHandler(async (req, res) => {
+    const vendor = await vendorsService.approve(req.user.id, req.params.id);
+    res.json({ success: true, data: { vendor } });
+  }),
+
+  reject: asyncHandler(async (req, res) => {
+    const vendor = await vendorsService.reject(req.user.id, req.params.id, req.body);
+    res.json({ success: true, data: { vendor } });
+  }),
 };
 
 module.exports = { vendorsController };

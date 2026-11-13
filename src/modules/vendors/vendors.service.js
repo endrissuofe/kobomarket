@@ -1,8 +1,11 @@
 const { vendorsRepository } = require('./vendors.repository');
 const { VENDOR_STATUS } = require('./vendor.model');
-const { USER_STATUS } = require('../users/user.model');
+const { USER_STATUS, ROLES } = require('../users/user.model');
+const { usersRepository } = require('../users/users.repository');
+const { decodeCursor, paginate } = require('../../shared/http/cursor');
 const { slugify, withSuffix } = require('../../shared/text/slug');
-const { conflict, forbidden, notFound } = require('../../shared/errors');
+const { badRequest, conflict, forbidden, notFound } = require('../../shared/errors');
+const { objectId } = require('../../shared/http/schemas');
 
 const SLUG_ATTEMPTS = 5;
 
@@ -90,4 +93,61 @@ async function getPublic(id) {
   return toPublic(vendor);
 }
 
-module.exports = { vendorsService: { apply, getMine, getPublic }, toPublic, toOwner };
+// --- Admin review ---
+
+async function reviewConflict(id, action) {
+  const current = await vendorsRepository.findById(id);
+  if (!current) throw notFound('Vendor');
+  return conflict(
+    'INVALID_VENDOR_STATUS',
+    `Cannot ${action} an application that is ${current.status}`,
+    { status: current.status },
+  );
+}
+
+/**
+ * PENDING -> APPROVED, then grant the vendor role. The two writes are in
+ * different collections and MongoDB here has no multi-document transaction,
+ * so approve is safe to repeat: calling it on an APPROVED store re-grants the
+ * role, which completes an approval that failed between the two writes.
+ */
+async function approve(adminId, vendorId) {
+  let vendor = await vendorsRepository.transition(vendorId, {
+    from: VENDOR_STATUS.PENDING,
+    to: VENDOR_STATUS.APPROVED,
+    reviewedBy: adminId,
+  });
+  if (!vendor) {
+    const current = await vendorsRepository.findById(vendorId);
+    if (current?.status !== VENDOR_STATUS.APPROVED) throw await reviewConflict(vendorId, 'approve');
+    vendor = current;
+  }
+  await usersRepository.addRole(vendor.userId, ROLES.VENDOR);
+  return toOwner(vendor);
+}
+
+async function reject(adminId, vendorId, { reason }) {
+  const vendor = await vendorsRepository.transition(vendorId, {
+    from: VENDOR_STATUS.PENDING,
+    to: VENDOR_STATUS.REJECTED,
+    reviewedBy: adminId,
+    rejectionReason: reason,
+  });
+  if (!vendor) throw await reviewConflict(vendorId, 'reject');
+  return toOwner(vendor);
+}
+
+/** Admin queue, oldest first. */
+async function list({ status, limit, cursor }) {
+  const after = decodeCursor(cursor);
+  if (after && !objectId.safeParse(after.id).success) throw badRequest('Invalid cursor');
+  const rows = await vendorsRepository.list({ status, afterId: after?.id, limit: limit + 1 });
+  const page = paginate(rows, limit, (v) => ({ id: String(v._id) }));
+  return { items: page.items.map(toOwner), nextCursor: page.nextCursor };
+}
+
+module.exports = {
+  vendorsService: { apply, getMine, getPublic, approve, reject, list },
+  toPublic,
+  toOwner,
+};
