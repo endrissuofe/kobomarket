@@ -12,6 +12,7 @@ const { providerError } = require('./errors');
  */
 function createMockProvider({ secretKey, fetchImpl = fetch }) {
   const payments = new Map();
+  const transfers = new Map();
   // Paystack transaction ids are unique forever, and webhook_events dedupes on
   // them, so the mock's ids must not restart from the same number when the
   // process restarts: millisecond clock x 1000 plus a counter.
@@ -93,6 +94,30 @@ function createMockProvider({ secretKey, fetchImpl = fetch }) {
         statuses.push(res.status);
       }
       return statuses;
+    },
+
+    /**
+     * Transfer to a bank account. Idempotent by reference. Account numbers
+     * ending in 0000 fail, so tests and the demo can show a failed payout.
+     */
+    async transfer({ reference, amountKobo, bank }) {
+      if (!transfers.has(reference)) {
+        const fails = bank.accountNumber.endsWith('0000');
+        transfers.set(reference, {
+          status: fails ? 'failed' : 'success',
+          providerRef: `TRF_mock_${nextId()}`,
+          reason: fails ? 'Could not resolve the account number (mock: ends in 0000)' : null,
+          amountKobo,
+        });
+      }
+      const { status, providerRef, reason } = transfers.get(reference);
+      return { status, providerRef, reason };
+    },
+
+    async verifyTransfer(reference) {
+      const t = transfers.get(reference);
+      if (!t) throw providerError('Transfer not found', { reference });
+      return { status: t.status, providerRef: t.providerRef, reason: t.reason };
     },
 
     /** Test helper: make verify report something different from what was charged. */
