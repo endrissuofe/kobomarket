@@ -23,58 +23,58 @@ Every requirement in the assignment brief, restated in our own words as a checkl
 - [ ] Buyer: browse, cart, order, fund wallet, confirm delivery, open disputes, review.
 - [ ] Vendor: create store, manage products and stock, view orders, mark shipped, view wallet, request payouts.
 - [ ] Admin: approve vendors, view all transactions, resolve disputes, issue refunds, set commission, freeze accounts.
-- [ ] One user can be both buyer and vendor.
-- [ ] RBAC is done with middleware, not role checks scattered in controllers.
+- [x] One user can be both buyer and vendor. ✓ `vendors.admin.test.js`, `cart.test.js`
+- [x] RBAC is done with middleware, not role checks scattered in controllers. ✓ `requireRole()`; `rbac.test.js`
 
 ## 3. Module A — Authentication and accounts (MongoDB)
 
-- [ ] Register with email and password, hashed with bcrypt or argon2.
-- [ ] Email verification with an expiring token (console log or Mailtrap is fine).
-- [ ] Login returns a 15-minute access token and a 7-day refresh token.
-- [ ] Refresh tokens stored hashed and rotated on every use.
-- [ ] Reusing an old refresh token logs the user out of **all** sessions.
-- [ ] Logout invalidates the refresh token.
-- [ ] Forgot password and reset password flow.
-- [ ] Login rate limit: at most 5 failed attempts per 15 minutes per email + IP.
-- [ ] Creating a user in MongoDB creates their wallet in PostgreSQL, with failure handled (section 9).
+- [x] Register with email and password, hashed with bcrypt or argon2. ✓ argon2id; `auth.register.test.js`
+- [x] Email verification with an expiring token (console log or Mailtrap is fine). ✓ `auth.register.test.js`
+- [x] Login returns a 15-minute access token and a 7-day refresh token. ✓ `auth.login.test.js`
+- [x] Refresh tokens stored hashed and rotated on every use. ✓ `auth.sessions.test.js`
+- [x] Reusing an old refresh token logs the user out of **all** sessions. ✓ `auth.sessions.test.js`
+- [x] Logout invalidates the refresh token. ✓ `auth.sessions.test.js`
+- [x] Forgot password and reset password flow. ✓ `auth.password.test.js`
+- [x] Login rate limit: at most 5 failed attempts per 15 minutes per email + IP. ✓ `auth.login.test.js`
+- [ ] Creating a user in MongoDB creates their wallet in PostgreSQL, with failure handled (section 9). — _PARTIAL: wallet opened at register, left PENDING on failure (`auth.register.test.js`); the reconciler job that retries PENDING wallets comes with Redis/BullMQ_
 
 ## 4. Module B — Vendors and products (MongoDB)
 
-- [ ] User applies to be a vendor with store name, description and bank details.
-- [ ] Application status pending → approved or rejected; only admins decide.
-- [ ] Approved vendors create, update and soft-delete products.
-- [ ] Product fields: name, unique slug, description, price in kobo, category, image URLs, stock, variants (e.g. size/colour, each with its own price and stock), tags, isActive.
-- [ ] Full-text search on name and description.
-- [ ] Filters: category, price range, vendor, rating.
-- [ ] Sort: price, newest, rating.
-- [ ] Cursor-based pagination (not skip/limit).
+- [x] User applies to be a vendor with store name, description and bank details. ✓ `vendors.test.js`
+- [x] Application status pending → approved or rejected; only admins decide. ✓ `vendors.admin.test.js`
+- [x] Approved vendors create, update and soft-delete products. ✓ `products.test.js`, `products.manage.test.js`
+- [x] Product fields: name, unique slug, description, price in kobo, category, image URLs, stock, variants (e.g. size/colour, each with its own price and stock), tags, isActive. ✓ `products.test.js`
+- [x] Full-text search on name and description. ✓ `products.list.test.js`
+- [x] Filters: category, price range, vendor, rating. ✓ `products.list.test.js`
+- [x] Sort: price, newest, rating. ✓ `products.list.test.js`
+- [x] Cursor-based pagination (not skip/limit). ✓ `products.list.test.js`
 - [ ] Reviews only from buyers with a completed order for that product.
 - [ ] One review per buyer per product.
 - [ ] Adding a review updates the product's average rating.
 
 ## 5. Module C — Cart (MongoDB)
 
-- [ ] Add, update and remove items; one cart may hold items from many vendors.
+- [x] Add, update and remove items; one cart may hold items from many vendors. ✓ `cart.test.js`
 - [ ] At checkout, stock and current price are re-validated (cart prices may be stale).
 
 ## 6. Module D — Wallets and ledger (PostgreSQL)
 
-- [ ] Every user has a wallet; the platform has system accounts.
-- [ ] Double-entry: every money movement writes at least one debit and one credit that sum to zero.
-- [ ] Wallet balance can be derived from the ledger; a cached balance must always equal the ledger sum.
-- [ ] Ledger entries are append-only; mistakes are corrected with reversing entries.
-- [ ] System accounts exist: `PLATFORM_ESCROW` (buyer money for unfinished orders), `PLATFORM_REVENUE` (commission), `PLATFORM_PAYOUT_CLEARING` (money on its way to a vendor's bank).
+- [x] Every user has a wallet; the platform has system accounts. ✓ `auth.register.test.js`, `ledger.test.js`
+- [x] Double-entry: every money movement writes at least one debit and one credit that sum to zero. ✓ `LedgerService.post()`; `ledger.test.js`
+- [x] Wallet balance can be derived from the ledger; a cached balance must always equal the ledger sum. ✓ `ledger.test.js`, `audit:ledger`
+- [x] Ledger entries are append-only; mistakes are corrected with reversing entries. ✓ DB trigger; `ledger.test.js`
+- [x] System accounts exist: `PLATFORM_ESCROW` (buyer money for unfinished orders), `PLATFORM_REVENUE` (commission), `PLATFORM_PAYOUT_CLEARING` (money on its way to a vendor's bank). ✓ `ledger.test.js`
 - [ ] At least these tables: `accounts` (id, owner_type, owner_id, currency, balance_kobo, status, created_at), `transactions` (id, unique reference, type, status, unique idempotency_key, JSONB metadata, created_at), `ledger_entries` (id, transaction FK, account FK, direction debit/credit, amount_kobo > 0, created_at), plus `orders`, `order_items`, `payouts`, `disputes`.
-- [ ] Database constraints refuse bad data even if the code is wrong: amount > 0, user wallet balance ≥ 0, foreign keys, unique keys.
+- [x] Database constraints refuse bad data even if the code is wrong: amount > 0, user wallet balance ≥ 0, foreign keys, unique keys. ✓ `ledger.test.js` (database guards)
 
 ## 7. Module E — Funding the wallet (Paystack test mode)
 
-- [ ] Buyer starts funding; the API initialises a Paystack payment and returns the checkout URL.
-- [ ] Paystack calls a webhook when payment succeeds.
-- [ ] Webhook verifies the HMAC SHA-512 signature with the secret key and rejects anything unsigned or wrongly signed.
-- [ ] Webhook is idempotent: duplicate events credit the wallet exactly once.
-- [ ] Webhook re-verifies the transaction with Paystack's verify endpoint before crediting.
-- [ ] Allowed alternative: a mock payment provider that behaves the same way, including sending duplicate webhooks.
+- [x] Buyer starts funding; the API initialises a Paystack payment and returns the checkout URL. ✓ mock in use; Paystack client unit-tested with faked HTTP (`payments.test.js`); `wallet.fund.test.js`
+- [x] Paystack calls a webhook when payment succeeds. ✓ `wallet.webhook.test.js`
+- [x] Webhook verifies the HMAC SHA-512 signature with the secret key and rejects anything unsigned or wrongly signed. ✓ required test 5; `wallet.webhook.test.js`
+- [x] Webhook is idempotent: duplicate events credit the wallet exactly once. ✓ required test 4; `wallet.webhook.test.js`
+- [x] Webhook re-verifies the transaction with Paystack's verify endpoint before crediting. ✓ `wallet.webhook.test.js`
+- [x] Allowed alternative: a mock payment provider that behaves the same way, including sending duplicate webhooks. ✓ `/mock-paystack/checkout/:ref/pay`
 
 ## 8. Module F — Orders and escrow (PostgreSQL)
 
@@ -126,24 +126,24 @@ Every requirement in the assignment brief, restated in our own words as a checkl
 
 ## 13. Non-functional requirements
 
-- [ ] Layered architecture: routes → controllers → services → repositories; business logic in services.
-- [ ] Every request body and query validated with Joi or Zod.
-- [ ] Central error middleware; error shape `{ success: false, error: { code, message, details } }`.
+- [x] Layered architecture: routes → controllers → services → repositories; business logic in services.
+- [ ] Every request body and query validated with Joi or Zod. — _PARTIAL: every route so far uses `validate()`; keep it so_
+- [x] Central error middleware; error shape `{ success: false, error: { code, message, details } }`.
 - [ ] Structured logs (pino or winston) with a request ID on every line.
-- [ ] Helmet, CORS config, rate limiting; secrets only in `.env` with a committed `.env.example`; no passwords or tokens in logs.
+- [ ] Helmet, CORS config, rate limiting; secrets only in `.env` with a committed `.env.example`; no passwords or tokens in logs. — _PARTIAL: helmet, CORS and login rate limit done; general API rate limiting not yet_
 - [ ] Commission rate, escrow timeout and payout minimum are configurable, not hard-coded.
-- [ ] PostgreSQL schema only through migrations (Knex here); no manual table creation.
+- [x] PostgreSQL schema only through migrations (Knex here); no manual table creation.
 - [ ] Seed script: 1 admin, 3 vendors, 20 products, 5 buyers with funded wallets.
 - [ ] Swagger/OpenAPI docs served at `/api-docs`.
-- [ ] `docker-compose up` starts the API, MongoDB, PostgreSQL (and Redis if used).
-- [ ] Tests with Jest and Supertest.
+- [x] `docker-compose up` starts the API, MongoDB, PostgreSQL (and Redis if used). ✓ CI `docker-smoke`
+- [x] Tests with Jest and Supertest.
 
 ## 14. The hard parts
 
 - [ ] **Cross-database consistency** handled for (a) user created but wallet creation fails and (b) escrow taken but stock decrement fails, using compensating actions or the outbox pattern. README explains the choice and why.
 - [ ] **Concurrency:** two simultaneous checkouts by one buyer cannot overspend; two buyers cannot both get the last item. Use row locks, conditional atomic updates in MongoDB, or optimistic locking.
-- [ ] **Idempotency:** `POST /orders/checkout`, `POST /wallet/fund` and `POST /payouts` accept `Idempotency-Key`. Same key + same body returns the original response without repeating the action; same key + different body returns 409.
-- [ ] **Money correctness:** at all times, all user wallets + escrow + revenue + payout clearing = total ever funded − total ever paid out. `npm run audit:ledger` checks it and prints PASS or FAIL.
+- [ ] **Idempotency:** `POST /orders/checkout`, `POST /wallet/fund` and `POST /payouts` accept `Idempotency-Key`. Same key + same body returns the original response without repeating the action; same key + different body returns 409. — _PARTIAL: middleware done and used by `POST /wallet/fund` (`idempotency.test.js`); checkout and payouts still to wire_
+- [x] **Money correctness:** at all times, all user wallets + escrow + revenue + payout clearing = total ever funded − total ever paid out. `npm run audit:ledger` checks it and prints PASS or FAIL. ✓ runs in CI after the suite
 
 ## 15. Endpoints (minimum; all under `/api/v1`; none may be removed)
 
@@ -162,11 +162,11 @@ Every requirement in the assignment brief, restated in our own words as a checkl
 
 ## 16. Required tests (each must exist and pass)
 
-- [ ] 1. Login fails before email is verified.
-- [ ] 2. A reused refresh token is rejected and ends all sessions.
-- [ ] 3. A buyer cannot reach vendor or admin routes.
-- [ ] 4. The same Paystack webhook sent twice credits the wallet once.
-- [ ] 5. A webhook with a bad signature is rejected.
+- [x] 1. Login fails before email is verified. ✓ `auth.login.test.js`
+- [x] 2. A reused refresh token is rejected and ends all sessions. ✓ `auth.sessions.test.js`
+- [x] 3. A buyer cannot reach vendor or admin routes. ✓ `rbac.test.js`
+- [x] 4. The same Paystack webhook sent twice credits the wallet once. ✓ `wallet.webhook.test.js`
+- [x] 5. A webhook with a bad signature is rejected. ✓ `wallet.webhook.test.js`
 - [ ] 6. Checkout with too little balance fails and creates no order and no ledger entries.
 - [ ] 7. 10 concurrent checkouts against a wallet that can afford 3 → exactly 3 succeed.
 - [ ] 8. 2 buyers racing for the last item → exactly 1 succeeds.
@@ -188,13 +188,13 @@ Every requirement in the assignment brief, restated in our own words as a checkl
 | 4    | Payouts, notifications, admin reports, tests, Swagger, README, demo video |
 
 - [ ] Short progress check at the end of each week.
-- [ ] Push to GitHub regularly; one giant final commit is penalised.
+- [x] Push to GitHub regularly; one giant final commit is penalised.
 
 ## 18. Submission
 
 - [ ] GitHub repo link with a clear folder structure.
 - [ ] README with: setup that works with `docker-compose up` + `npm run seed`; an architecture diagram; a PostgreSQL ERD and a description of MongoDB collections; the two-database explanation; how consistency, concurrency and idempotency were handled; known limitations and improvements.
-- [ ] `.env.example`.
+- [x] `.env.example`.
 - [ ] Swagger at `/api-docs`.
 - [ ] Exported Postman collection (JSON).
 - [ ] Test suite runs with `npm test`.
@@ -226,7 +226,7 @@ Every requirement in the assignment brief, restated in our own words as a checkl
 - [ ] Coupons that correctly affect commission — **planned skip**
 - [ ] Redis caching of product listings with correct invalidation
 - [ ] Deployed with a live URL (Render, Railway, Fly.io)
-- [ ] CI on every push (GitHub Actions) — in place
+- [x] CI on every push (GitHub Actions)
 
 ## 21. Deliberate additions and interpretations (in scope, explain in README)
 
