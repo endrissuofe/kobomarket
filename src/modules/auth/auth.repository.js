@@ -68,6 +68,42 @@ const authRepository = {
   createSession({ userId, familyId, tokenHash, expiresAt, ip, userAgent }) {
     return Session.create({ userId, familyId, tokenHash, expiresAt, ip, userAgent });
   },
+
+  findSessionByTokenHash(tokenHash) {
+    return Session.findOne({ tokenHash }).lean();
+  },
+
+  /**
+   * Claim a live token for rotation: set replacedBy only if it has not been
+   * replaced, revoked or expired. Atomic, so of two parallel refreshes with
+   * the same token exactly one wins. Returns null if the claim failed.
+   */
+  claimSessionForRotation({ tokenHash, replacedBy, now = new Date() }) {
+    return Session.findOneAndUpdate(
+      { tokenHash, replacedBy: null, revokedAt: null, expiresAt: { $gt: now } },
+      { $set: { replacedBy } },
+      { new: true },
+    ).lean();
+  },
+
+  deleteSessionByTokenHash(tokenHash) {
+    return Session.deleteOne({ tokenHash });
+  },
+
+  /** Revoke every token in one login's chain (one device). */
+  revokeSessionFamily(familyId, now = new Date()) {
+    return Session.updateMany({ familyId, revokedAt: null }, { $set: { revokedAt: now } });
+  },
+
+  /** Revoke every session the user has, on every device. */
+  revokeAllUserSessions(userId, now = new Date()) {
+    return Session.updateMany({ userId, revokedAt: null }, { $set: { revokedAt: now } });
+  },
+
+  /** True once a login's chain has been revoked (logout, reuse, password reset). */
+  async isSessionFamilyRevoked(familyId) {
+    return Boolean(await Session.exists({ familyId, revokedAt: { $ne: null } }));
+  },
 };
 
 module.exports = { authRepository, Session, LoginAttempt };
