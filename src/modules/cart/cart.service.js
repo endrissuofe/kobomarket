@@ -127,4 +127,28 @@ async function addItem(user, { productId, variantSku, qty }) {
   return review(user.id);
 }
 
-module.exports = { cartService: { review, addItem }, LINE_PROBLEMS };
+/** Set a line's qty, checked against current stock. */
+async function updateItem(user, itemId, { qty }) {
+  const found = await cartRepository.findLine(user.id, itemId);
+  const line = found?.items?.[0];
+  if (!line) throw notFound('Cart item');
+
+  const product = await productsRepository.findLiveById(line.productId);
+  const unit = product && sellable(product, line.variantSku);
+  if (!unit) {
+    throw conflict('ITEM_UNAVAILABLE', 'This item is no longer for sale; remove it from your cart');
+  }
+  if (qty > unit.stock) {
+    throw conflict('INSUFFICIENT_STOCK', 'Not enough stock', { available: unit.stock });
+  }
+
+  if (!(await cartRepository.setLineQty(user.id, itemId, qty))) throw notFound('Cart item');
+  return review(user.id);
+}
+
+async function removeItem(user, itemId) {
+  if (!(await cartRepository.removeLine(user.id, itemId))) throw notFound('Cart item');
+  return review(user.id);
+}
+
+module.exports = { cartService: { review, addItem, updateItem, removeItem }, LINE_PROBLEMS };

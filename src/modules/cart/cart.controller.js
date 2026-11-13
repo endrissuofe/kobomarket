@@ -10,6 +10,16 @@ const cartController = {
     const cart = await cartService.addItem(req.user, req.body);
     res.status(201).json({ success: true, data: { cart } });
   }),
+
+  updateItem: asyncHandler(async (req, res) => {
+    const cart = await cartService.updateItem(req.user, req.params.itemId, req.body);
+    res.json({ success: true, data: { cart } });
+  }),
+
+  removeItem: asyncHandler(async (req, res) => {
+    const cart = await cartService.removeItem(req.user, req.params.itemId);
+    res.json({ success: true, data: { cart } });
+  }),
 };
 
 module.exports = { cartController };
