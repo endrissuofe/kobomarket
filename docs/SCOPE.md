@@ -92,10 +92,10 @@ Every requirement in the assignment brief, restated in our own words as a checkl
 
 ## 9. Module G — Disputes and refunds (PostgreSQL)
 
-- [ ] Buyer opens a dispute on a SHIPPED or DELIVERED sub-order, with a reason and evidence (text and/or image URLs).
-- [ ] An open dispute freezes that sub-order's escrow; the auto-complete job skips it.
-- [ ] Admin resolves as full refund (escrow → buyer), partial refund (part → buyer, rest → vendor, commission only on the vendor's part), or reject (release to vendor as normal).
-- [ ] Every resolution records the admin's ID and a note.
+- [x] Buyer opens a dispute on a SHIPPED or DELIVERED sub-order, with a reason and evidence (text and/or image URLs). ✓ SHIPPED (confirming releases at once; README); `disputes.test.js`
+- [x] An open dispute freezes that sub-order's escrow; the auto-complete job skips it. ✓ `disputes.test.js`, `tests/jobs/auto-complete.test.js`
+- [x] Admin resolves as full refund (escrow → buyer), partial refund (part → buyer, rest → vendor, commission only on the vendor's part), or reject (release to vendor as normal). ✓ `disputes.test.js`
+- [x] Every resolution records the admin's ID and a note. ✓ DB check + `disputes.test.js`
 
 ## 10. Module H — Vendor payouts (PostgreSQL)
 
@@ -174,7 +174,7 @@ Every requirement in the assignment brief, restated in our own words as a checkl
 - [x] 10. An invalid transition (e.g. PAID → COMPLETED) is rejected. ✓ `state-machine.test.js`, `orders.fulfil.test.js`
 - [x] 11. Completing an order splits money correctly between vendor and platform revenue. ✓ `orders.fulfil.test.js`
 - [x] 12. The auto-complete job skips a disputed sub-order. ✓ `tests/jobs/auto-complete.test.js`
-- [ ] 13. A partial refund leaves the ledger balanced.
+- [x] 13. A partial refund leaves the ledger balanced. ✓ `disputes.test.js`
 - [ ] 14. A failed payout returns the money to the vendor's wallet.
 - [ ] 15. `npm run audit:ledger` passes after the full test suite.
 

@@ -49,7 +49,7 @@ Started 5 Nov; the four-week clock ends around **3 Dec 2026**. Week 1's progress
 
 - Integration tests run against Neon `production`. Create a Neon `test` branch and point tests at it.
 - App connects as the table owner, so the trigger is the only guard on ledger rows. Add a restricted app role with UPDATE/DELETE revoked.
-- MongoDB, auth, vendors, products, wallet funding, cart, checkout/orders and the BullMQ worker are done (13 Nov). Locally Redis is not installed yet, so the worker cannot run on this machine (tests do not need it); CI runs it in Docker. Reviews (product rating) wait for completed orders.
+- MongoDB, auth, vendors, products, wallet funding, cart, checkout/orders, the BullMQ worker and disputes are done (13 Nov). Redis runs locally on the Ubuntu machine; tests do not need it. Reviews (product rating) wait for completed orders.
 
 ## 2. Data ownership
 
