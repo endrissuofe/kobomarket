@@ -33,8 +33,30 @@ jobs:
           done
           docker compose logs api
           exit 1
+      # The worker is stopped during the tests: its scheduled jobs would race
+      # the job tests (e.g. auto-complete a sub-order a test means to).
+      - name: Stop the worker for the test run
+        run: docker compose stop worker
       - name: Integration, concurrency and job tests inside the stack
         run: docker compose exec -T -e NODE_ENV=test api npx jest --runInBand tests/integration tests/concurrency tests/jobs
+      # Proves the real Redis + BullMQ path: a probe event written now must be
+      # relayed (SENT), along with anything the tests left PENDING.
+      - name: Worker relays the outbox through Redis
+        run: |
+          probe=$(docker compose exec -T postgres psql -U kobo -d kobomarket -tAc \
+            "INSERT INTO outbox_events (aggregate, aggregate_id, event_type) VALUES ('ci', 'probe', 'ci.probe') RETURNING id")
+          echo "probe outbox id: $probe"
+          docker compose start worker
+          for i in $(seq 1 45); do
+            state=$(docker compose exec -T postgres psql -U kobo -d kobomarket -tAc \
+              "SELECT (SELECT status FROM outbox_events WHERE id = $probe) || ' ' ||
+                      (SELECT count(*) FROM outbox_events WHERE status = 'PENDING' AND next_attempt_at <= now())")
+            echo "probe status, PENDING due: $state"
+            if [ "$state" = "SENT 0" ]; then exit 0; fi
+            sleep 2
+          done
+          docker compose logs worker
+          exit 1
       - name: Ledger audit (money is conserved after the tests)
         run: docker compose exec -T api npm run audit:ledger
       - if: failure()
