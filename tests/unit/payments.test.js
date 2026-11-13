@@ -102,3 +102,18 @@ describe('Paystack provider (HTTP faked)', () => {
     await expect(provider(impl).verify('KM-1')).rejects.toMatchObject({ status: 502 });
   });
 });
+
+describe('mock provider', () => {
+  const { createMockProvider } = require('../../src/integrations/payments/mock');
+
+  test('a restarted mock does not reuse event ids (webhook_events dedupes on them)', async () => {
+    const before = createMockProvider({ secretKey: SECRET });
+    await before.initialize({ email: 'a@b.co', amountKobo: 100, reference: 'R-A' });
+    await new Promise((r) => setTimeout(r, 2));
+    const afterRestart = createMockProvider({ secretKey: SECRET });
+    await afterRestart.initialize({ email: 'a@b.co', amountKobo: 100, reference: 'R-B' });
+
+    const idOf = (p, ref) => JSON.parse(p.chargeSuccessEvent(ref)).data.id;
+    expect(idOf(afterRestart, 'R-B')).toBeGreaterThan(idOf(before, 'R-A'));
+  });
+});
