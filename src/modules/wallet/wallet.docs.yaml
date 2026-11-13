@@ -1,0 +1,108 @@
+# OpenAPI fragment for the wallet, funding and the Paystack webhook.
+# Merged into /api-docs in plan step 12. All amounts are integer kobo.
+paths:
+  /api/v1/wallet:
+    get:
+      tags: [Wallet]
+      summary: Your wallet balance
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: Wallet
+          content:
+            application/json:
+              example:
+                success: true
+                data:
+                  { wallet: { accountId: '…', currency: NGN, balanceKobo: 750000, status: ACTIVE } }
+        '409': { description: WALLET_NOT_READY (wallet still being opened) }
+
+  /api/v1/wallet/transactions:
+    get:
+      tags: [Wallet]
+      summary: Your wallet's ledger entries, newest first (cursor pagination)
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - {
+            name: limit,
+            in: query,
+            schema: { type: integer, minimum: 1, maximum: 100, default: 20 },
+          }
+        - { name: cursor, in: query, schema: { type: string } }
+      responses:
+        '200':
+          description: '{ items: [{ id, transactionId, type, reference, direction, amountKobo, createdAt }], nextCursor }'
+
+  /api/v1/wallet/fund:
+    post:
+      tags: [Wallet]
+      summary: Start funding your wallet
+      description: >
+        Returns the provider's checkout URL. The wallet is credited only when the
+        provider's signed webhook arrives and the payment is re-verified with the
+        provider. Idempotent: the same Idempotency-Key and body return the same
+        funding; a different body with the same key is a 409.
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - {
+            name: Idempotency-Key,
+            in: header,
+            required: true,
+            schema: { type: string, maxLength: 255 },
+          }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [amountKobo]
+              additionalProperties: false
+              properties:
+                amountKobo: { type: integer, minimum: 10000, maximum: 1000000000, example: 500000 }
+      responses:
+        '201':
+          description: Funding started
+          content:
+            application/json:
+              example:
+                success: true
+                data:
+                  funding:
+                    reference: KM-FND-6f1c…
+                    amountKobo: 500000
+                    status: INITIATED
+                    authorizationUrl: https://checkout.paystack.com/…
+        '400': { description: IDEMPOTENCY_KEY_REQUIRED }
+        '409': { description: IDEMPOTENCY_KEY_REUSED, REQUEST_IN_PROGRESS or WALLET_NOT_READY }
+        '422': { description: VALIDATION_ERROR (decimal, string, below NGN 100 or above NGN 10m) }
+        '502': { description: PAYMENT_PROVIDER_ERROR }
+
+  /api/v1/webhooks/paystack:
+    post:
+      tags: [Webhooks]
+      summary: Paystack webhook (called by Paystack, not by clients)
+      description: >
+        The raw body must carry a valid x-paystack-signature (HMAC-SHA512 with the
+        secret key). charge.success credits the matching funding exactly once, after
+        re-verifying the amount with Paystack. Redelivered events are acknowledged
+        and ignored.
+      parameters:
+        - { name: x-paystack-signature, in: header, required: true, schema: { type: string } }
+      responses:
+        '200':
+          {
+            description: 'Received. data.outcome: credited, duplicate, already_credited, amount_mismatch, ignored, …',
+          }
+        '401': { description: INVALID_SIGNATURE (nothing stored or credited) }
+        '502': { description: Re-verification failed; Paystack will retry }
+
+  /mock-paystack/checkout/{reference}/pay:
+    post:
+      tags: [Mock provider]
+      summary: Pay a funding on the mock provider (only when PAYMENT_PROVIDER=mock)
+      description: Marks the payment successful and sends the signed charge.success webhook twice.
+      parameters:
+        - { name: reference, in: path, required: true, schema: { type: string } }
+      responses:
+        '200': { description: '{ reference, webhookDeliveries: [200, 200] }' }
