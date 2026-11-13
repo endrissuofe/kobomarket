@@ -18,6 +18,8 @@ const compensationSchema = new Schema(
     },
     attempts: { type: Number, default: 0 },
     lastError: { type: String, default: null },
+    // Lease while a worker is retrying it, so two workers never run it together.
+    claimedUntil: { type: Date, default: null },
   },
   { timestamps: true, collection: 'compensations' },
 );

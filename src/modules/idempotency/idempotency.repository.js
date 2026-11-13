@@ -47,6 +47,11 @@ const idempotencyRepository = {
       });
   },
 
+  /** Housekeeping: drop keys past their 24 h expiry. Returns how many. */
+  deleteExpired() {
+    return db('idempotency_keys').where('expires_at', '<', db.fn.now()).del();
+  },
+
   /** Free the key after a server error so the client can retry. */
   release({ key, userId, endpoint }) {
     return db('idempotency_keys')

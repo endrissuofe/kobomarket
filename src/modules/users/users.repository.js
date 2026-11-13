@@ -23,6 +23,15 @@ const usersRepository = {
     return User.findByIdAndUpdate(id, { $set: { name } }, { new: true, runValidators: true });
   },
 
+  /** Users whose wallet is still PENDING and were created before `olderThan`. */
+  findPendingWallets({ olderThan, limit }) {
+    return User.find({ walletStatus: 'PENDING', createdAt: { $lte: olderThan } })
+      .sort({ createdAt: 1 })
+      .limit(limit)
+      .select('_id')
+      .lean();
+  },
+
   setWalletStatus(id, walletStatus) {
     return User.updateOne({ _id: id }, { $set: { walletStatus } });
   },
