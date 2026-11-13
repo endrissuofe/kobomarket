@@ -1,0 +1,166 @@
+# OpenAPI fragment for the auth module. Merged into /api-docs when Swagger is
+# wired (plan step 12). Shared components (ErrorResponse, User) live there.
+paths:
+  /api/v1/auth/register:
+    post:
+      tags: [Auth]
+      summary: Register with email and password
+      description: >
+        Creates an unverified buyer, opens their wallet in PostgreSQL and emails a
+        one-time verification token (logged to the console). If the wallet cannot
+        be opened the user is still created with walletStatus PENDING and a job retries.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password]
+              properties:
+                email: { type: string, format: email }
+                password: { type: string, minLength: 8, maxLength: 128 }
+                name: { type: string, maxLength: 100 }
+      responses:
+        '201': { description: User created; verification email sent }
+        '409': { description: EMAIL_TAKEN }
+        '422': { description: VALIDATION_ERROR }
+
+  /api/v1/auth/verify-email:
+    post:
+      tags: [Auth]
+      summary: Verify email with the emailed token (24 h, single use)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [token]
+              properties: { token: { type: string } }
+      responses:
+        '200': { description: Email verified }
+        '400': { description: INVALID_TOKEN (unknown, used or expired) }
+
+  /api/v1/auth/login:
+    post:
+      tags: [Auth]
+      summary: Log in; returns a 15-minute access token and a 7-day refresh token
+      description: Max 5 attempts per email + IP per 15 minutes. A successful login resets the count.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password]
+              properties:
+                email: { type: string, format: email }
+                password: { type: string }
+      responses:
+        '200':
+          description: Tokens issued
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AuthTokens' }
+        '401': { description: INVALID_CREDENTIALS }
+        '403': { description: EMAIL_NOT_VERIFIED }
+        '429': { description: TOO_MANY_REQUESTS (details.retryAfterSeconds) }
+
+  /api/v1/auth/refresh:
+    post:
+      tags: [Auth]
+      summary: Rotate the refresh token
+      description: >
+        Returns a new access + refresh token pair; the presented token is retired.
+        Presenting a token that was already rotated is treated as theft and signs
+        the user out of every session.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [refreshToken]
+              properties: { refreshToken: { type: string } }
+      responses:
+        '200':
+          description: New token pair
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AuthTokens' }
+        '401': { description: INVALID_REFRESH_TOKEN or REFRESH_TOKEN_REUSED }
+
+  /api/v1/auth/logout:
+    post:
+      tags: [Auth]
+      summary: Sign out this device (revokes its refresh token chain)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [refreshToken]
+              properties: { refreshToken: { type: string } }
+      responses:
+        '204': { description: Signed out (also returned for unknown tokens) }
+
+  /api/v1/auth/forgot-password:
+    post:
+      tags: [Auth]
+      summary: Email a password reset token (30 min)
+      description: Always returns 200 so it cannot be used to discover accounts.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email]
+              properties: { email: { type: string, format: email } }
+      responses:
+        '200': { description: Reset email sent if the account exists }
+
+  /api/v1/auth/reset-password:
+    post:
+      tags: [Auth]
+      summary: Set a new password with the reset token; signs out every session
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [token, password]
+              properties:
+                token: { type: string }
+                password: { type: string, minLength: 8, maxLength: 128 }
+      responses:
+        '200': { description: Password updated }
+        '400': { description: INVALID_TOKEN }
+        '422': { description: VALIDATION_ERROR }
+
+  /api/v1/users/me:
+    get:
+      tags: [Users]
+      summary: The signed-in user
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200': { description: Current user }
+        '401': { description: UNAUTHORIZED, INVALID_TOKEN, TOKEN_EXPIRED or SESSION_REVOKED }
+
+components:
+  securitySchemes:
+    bearerAuth: { type: http, scheme: bearer, bearerFormat: JWT }
+  schemas:
+    AuthTokens:
+      type: object
+      properties:
+        success: { type: boolean }
+        data:
+          type: object
+          properties:
+            tokenType: { type: string, example: Bearer }
+            accessToken: { type: string }
+            accessTokenExpiresIn: { type: string, example: 15m }
+            refreshToken: { type: string }
