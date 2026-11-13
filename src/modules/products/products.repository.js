@@ -48,6 +48,40 @@ const productsRepository = {
   },
 
   /**
+   * Take qty off stock if, and only if, that much is available. One atomic
+   * conditional update: two buyers racing for the last item cannot both
+   * succeed. A variant line updates the variant and the product total
+   * together. Returns true if reserved.
+   */
+  async reserveStock({ productId, variantSku, qty }) {
+    const res = variantSku
+      ? await Product.updateOne(
+          {
+            _id: productId,
+            ...LIVE,
+            variants: { $elemMatch: { sku: variantSku, stock: { $gte: qty } } },
+          },
+          { $inc: { 'variants.$.stock': -qty, stock: -qty } },
+        )
+      : await Product.updateOne(
+          { _id: productId, ...LIVE, 'variants.0': { $exists: false }, stock: { $gte: qty } },
+          { $inc: { stock: -qty } },
+        );
+    return res.modifiedCount === 1;
+  },
+
+  /** Put qty back (cancel or compensation). Works on deleted products too. */
+  async releaseStock({ productId, variantSku, qty }) {
+    const res = variantSku
+      ? await Product.updateOne(
+          { _id: productId, 'variants.sku': variantSku },
+          { $inc: { 'variants.$.stock': qty, stock: qty } },
+        )
+      : await Product.updateOne({ _id: productId }, { $inc: { stock: qty } });
+    return res.matchedCount === 1;
+  },
+
+  /**
    * One page of a listing. The service builds filter (including the keyset
    * condition from the cursor) and sort. Returns documents, so toJSON applies.
    */
