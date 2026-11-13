@@ -22,7 +22,8 @@
     "format": "prettier --write .",
     "test": "jest --runInBand",
     "test:unit": "jest tests/unit",
-    "test:integration": "jest --runInBand tests/integration tests/concurrency"
+    "test:integration": "jest --runInBand tests/integration tests/concurrency",
+    "make-admin": "node scripts/make-admin.js"
   },
   "dependencies": {
     "@neon/config": "^1.11.3",
