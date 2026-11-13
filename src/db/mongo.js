@@ -5,6 +5,10 @@ const config = require('../config');
 // in memory until a request times out.
 mongoose.set('bufferCommands', false);
 mongoose.set('strictQuery', true);
+// Models are compiled before the connection opens, so Mongoose must not try to
+// create collections or indexes at compile time. connect() builds them instead.
+mongoose.set('autoCreate', false);
+mongoose.set('autoIndex', false);
 
 /** Open the shared Mongoose connection. Safe to call more than once. */
 async function connect(uri = config.mongoUri) {
@@ -16,7 +20,8 @@ async function connect(uri = config.mongoUri) {
     maxPoolSize: 10,
   });
   // Build the indexes models declare (unique email, TTLs, ...) before traffic.
-  await Promise.all(Object.values(mongoose.models).map((model) => model.init()));
+  // createIndexes only adds missing indexes; it never drops one.
+  await Promise.all(Object.values(mongoose.models).map((model) => model.createIndexes()));
   return mongoose.connection;
 }
 
