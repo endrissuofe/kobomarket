@@ -82,6 +82,14 @@ function createLedgerService({ db, repository }) {
     });
   }
 
+  /** A user's NGN wallet account, or null if it has not been opened. */
+  function findUserAccount(userId, trx) {
+    return repository.findAccount(trx || db, {
+      ownerType: OWNER_TYPES.USER,
+      ownerId: String(userId),
+    });
+  }
+
   /** Look up a system account by name, e.g. SYSTEM_ACCOUNTS.PLATFORM_ESCROW. */
   async function getSystemAccount(name, trx) {
     const account = await repository.findAccount(trx || db, {
@@ -119,7 +127,15 @@ function createLedgerService({ db, repository }) {
     return { ok: Object.values(checks).every((c) => c.ok), checks };
   }
 
-  return { post, openUserAccount, getSystemAccount, getAccount, audit, SYSTEM_ACCOUNTS };
+  return {
+    post,
+    openUserAccount,
+    findUserAccount,
+    getSystemAccount,
+    getAccount,
+    audit,
+    SYSTEM_ACCOUNTS,
+  };
 }
 
 module.exports = { createLedgerService };
