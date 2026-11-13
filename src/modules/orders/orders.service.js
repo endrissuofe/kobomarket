@@ -1,6 +1,8 @@
 const { randomUUID } = require('node:crypto');
 const { db, withTransaction } = require('../../db/postgres');
-const { AppError, conflict, forbidden, notFound } = require('../../shared/errors');
+const { AppError, badRequest, conflict, forbidden, notFound } = require('../../shared/errors');
+const { decodeCursor, paginate } = require('../../shared/http/cursor');
+const { approvedStoreOf } = require('../products/products.service');
 const { logger } = require('../../shared/logger');
 const { LedgerService, SYSTEM_ACCOUNTS, TRANSACTION_TYPES } = require('../ledger');
 const { walletOf } = require('../wallet/wallet.service');
@@ -238,7 +240,70 @@ async function getOrder(orderId, conn = db) {
   return toView(order, await ordersRepository.findSubOrdersWithItems(conn, [order.id]));
 }
 
+// Postgres timestamptz text, e.g. "2026-11-13 16:30:58.384123+00".
+const PG_TIMESTAMP = /^\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}:\d{2}(\.\d{1,6})?([+-]\d{2}(:?\d{2})?|Z)$/;
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/** A cursor of { t: created_at text, id: uuid }, checked before it reaches SQL. */
+function readTimeCursor(raw) {
+  const cursor = decodeCursor(raw);
+  if (!cursor) return null;
+  if (!PG_TIMESTAMP.test(String(cursor.t)) || !UUID.test(String(cursor.id))) {
+    throw badRequest('Invalid cursor');
+  }
+  return cursor;
+}
+
+const timeCursor = (row) => ({ t: row.cursorTime, id: row.id });
+const withoutCursor = ({ cursorTime: _ignored, ...rest }) => rest;
+
+/** The buyer's own order. Someone else's order is a 404, not a 403. */
+async function getOrderForBuyer(buyer, orderId) {
+  const order = await ordersRepository.findOrder(db, orderId);
+  if (!order || order.buyerId !== buyer.id) throw notFound('Order');
+  return getOrder(order.id);
+}
+
+async function listOrdersForBuyer(buyer, { limit, cursor }) {
+  const after = readTimeCursor(cursor);
+  const rows = await ordersRepository.listOrdersForBuyer(db, buyer.id, { after, limit: limit + 1 });
+  const page = paginate(rows, limit, timeCursor);
+  const subs = await ordersRepository.findSubOrdersWithItems(
+    db,
+    page.items.map((o) => o.id),
+  );
+  return {
+    items: page.items.map((o) =>
+      toView(
+        withoutCursor(o),
+        subs.filter((x) => x.orderId === o.id),
+      ),
+    ),
+    nextCursor: page.nextCursor,
+  };
+}
+
+/** The vendor's sub-orders (their side of each order), newest first. */
+async function listSubOrdersForVendor(user, { status, limit, cursor }) {
+  const store = await approvedStoreOf(user);
+  const after = readTimeCursor(cursor);
+  const rows = await ordersRepository.listSubOrdersForVendor(db, String(store._id), {
+    status,
+    after,
+    limit: limit + 1,
+  });
+  const page = paginate(rows, limit, timeCursor);
+  return { items: page.items.map(withoutCursor), nextCursor: page.nextCursor };
+}
+
 module.exports = {
-  ordersService: { placeOrder, checkout, getOrder },
+  ordersService: {
+    placeOrder,
+    checkout,
+    getOrder,
+    getOrderForBuyer,
+    listOrdersForBuyer,
+    listSubOrdersForVendor,
+  },
   transition,
 };

@@ -14,5 +14,7 @@ router.post(
   idempotent('orders.checkout'),
   ordersController.checkout,
 );
+router.get('/', validate({ query: schemas.listOrdersQuery }), ordersController.list);
+router.get('/:id', validate({ params: schemas.orderIdParams }), ordersController.get);
 
 module.exports = router;
