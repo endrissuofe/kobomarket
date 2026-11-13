@@ -51,8 +51,8 @@ function createApp() {
     });
   });
 
-  // Module routers mount under /api/v1 as they are built, e.g.:
-  // app.use('/api/v1/auth', require('./modules/auth/auth.routes'));
+  // Module routers, all under /api/v1.
+  app.use('/api/v1/auth', require('./modules/auth/auth.routes'));
 
   app.use(notFoundHandler);
   app.use(errorHandler);
