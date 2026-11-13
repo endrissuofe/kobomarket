@@ -148,6 +148,25 @@ paths:
       responses:
         '200': { description: Current user }
         '401': { description: UNAUTHORIZED, INVALID_TOKEN, TOKEN_EXPIRED or SESSION_REVOKED }
+    patch:
+      tags: [Users]
+      summary: Update your profile (name only)
+      description: >
+        Email, password, roles and status cannot be changed here; any other field
+        is a 422. Passwords change through forgot/reset password.
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name]
+              additionalProperties: false
+              properties: { name: { type: string, minLength: 1, maxLength: 100 } }
+      responses:
+        '200': { description: Updated user }
+        '422': { description: VALIDATION_ERROR (unknown or forbidden field) }
 
 components:
   securitySchemes:

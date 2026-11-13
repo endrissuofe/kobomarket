@@ -30,4 +30,10 @@ async function getById(userId) {
   return user;
 }
 
-module.exports = { usersService: { provisionWallet, getById } };
+async function updateMe(userId, fields) {
+  const user = await usersRepository.updateProfile(userId, fields);
+  if (!user) throw notFound('User');
+  return user;
+}
+
+module.exports = { usersService: { provisionWallet, getById, updateMe } };
