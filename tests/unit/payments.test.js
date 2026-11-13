@@ -117,3 +117,84 @@ describe('mock provider', () => {
     expect(idOf(afterRestart, 'R-B')).toBeGreaterThan(idOf(before, 'R-A'));
   });
 });
+
+describe('transfers', () => {
+  const { createMockProvider } = require('../../src/integrations/payments/mock');
+  const bank = (accountNumber) => ({ bankCode: '058', accountNumber, accountName: 'Ada Store' });
+
+  test('mock: succeeds, and the same reference returns the same transfer', async () => {
+    const mock = createMockProvider({ secretKey: SECRET });
+    const first = await mock.transfer({
+      reference: 'p-1',
+      amountKobo: 500000,
+      bank: bank('0123456789'),
+    });
+    const again = await mock.transfer({
+      reference: 'p-1',
+      amountKobo: 500000,
+      bank: bank('0123456789'),
+    });
+    expect(first).toMatchObject({ status: 'success', reason: null });
+    expect(again.providerRef).toBe(first.providerRef);
+  });
+
+  test('mock: an account number ending in 0000 fails with a reason', async () => {
+    const mock = createMockProvider({ secretKey: SECRET });
+    const out = await mock.transfer({
+      reference: 'p-2',
+      amountKobo: 500000,
+      bank: bank('0123450000'),
+    });
+    expect(out).toMatchObject({ status: 'failed', reason: expect.stringContaining('0000') });
+  });
+
+  test('Paystack: creates a recipient, then a transfer with our reference, amount in kobo', async () => {
+    const calls = [];
+    const responses = [
+      { status: true, data: { recipient_code: 'RCP_1' } },
+      { status: true, data: { status: 'success', transfer_code: 'TRF_1' } },
+    ];
+    const fetchImpl = async (url, init) => {
+      calls.push({ url, body: init.body && JSON.parse(init.body) });
+      return { ok: true, status: 200, json: async () => responses.shift() };
+    };
+    const paystack = createPaystackProvider({ secretKey: SECRET, baseUrl: 'https://x', fetchImpl });
+    const out = await paystack.transfer({
+      reference: 'pay-uuid',
+      amountKobo: 250000,
+      bank: bank('0123456789'),
+      reason: 'KoboMarket payout',
+    });
+    expect(out).toEqual({ status: 'success', providerRef: 'TRF_1', reason: null });
+    expect(calls[0]).toMatchObject({
+      url: 'https://x/transferrecipient',
+      body: { bank_code: '058' },
+    });
+    expect(calls[1]).toMatchObject({
+      url: 'https://x/transfer',
+      body: { amount: 250000, recipient: 'RCP_1', reference: 'pay-uuid' },
+    });
+  });
+
+  test('Paystack: a duplicate reference is checked with verify instead of paying twice', async () => {
+    const urls = [];
+    const responses = [
+      [200, { status: true, data: { recipient_code: 'RCP_1' } }],
+      [400, { status: false, message: 'Transfer reference already exists' }],
+      [200, { status: true, data: { status: 'reversed', transfer_code: 'TRF_9' } }],
+    ];
+    const fetchImpl = async (url) => {
+      urls.push(url);
+      const [code, json] = responses.shift();
+      return { ok: code < 300, status: code, json: async () => json };
+    };
+    const paystack = createPaystackProvider({ secretKey: SECRET, baseUrl: 'https://x', fetchImpl });
+    const out = await paystack.transfer({
+      reference: 'pay-uuid',
+      amountKobo: 1,
+      bank: bank('0123456789'),
+    });
+    expect(urls.at(-1)).toBe('https://x/transfer/verify/pay-uuid');
+    expect(out).toMatchObject({ status: 'failed', providerRef: 'TRF_9' });
+  });
+});

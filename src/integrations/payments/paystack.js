@@ -33,8 +33,57 @@ function createPaystackProvider({ secretKey, baseUrl, fetchImpl = fetch }) {
     return json.data;
   }
 
+  // Paystack transfer statuses -> ours. Anything not final stays pending and
+  // is checked again on the next processor run.
+  function mapTransfer(data) {
+    const failed = ['failed', 'reversed', 'abandoned', 'rejected', 'blocked'];
+    let status = 'pending';
+    if (data.status === 'success') status = 'success';
+    else if (failed.includes(data.status)) status = 'failed';
+    return {
+      status,
+      providerRef: data.transfer_code || null,
+      reason:
+        status === 'failed' ? data.reason || data.failures || `Paystack: ${data.status}` : null,
+    };
+  }
+
+  async function verifyTransfer(reference) {
+    return mapTransfer(await call('GET', `/transfer/verify/${encodeURIComponent(reference)}`));
+  }
+
   return {
     name: 'paystack',
+
+    /**
+     * Send money to a bank account. `reference` is our payout id: Paystack
+     * refuses a second transfer with the same reference, so a retry after a
+     * crash checks the first one instead of paying twice.
+     */
+    async transfer({ reference, amountKobo, bank, reason }) {
+      const recipient = await call('POST', '/transferrecipient', {
+        type: 'nuban',
+        name: bank.accountName,
+        account_number: bank.accountNumber,
+        bank_code: bank.bankCode,
+        currency: 'NGN',
+      });
+      try {
+        const data = await call('POST', '/transfer', {
+          source: 'balance',
+          amount: amountKobo,
+          recipient: recipient.recipient_code,
+          reference,
+          reason,
+        });
+        return mapTransfer(data);
+      } catch (err) {
+        if (/reference/i.test(err.message)) return verifyTransfer(reference);
+        throw err;
+      }
+    },
+
+    verifyTransfer,
 
     async initialize({ email, amountKobo, reference, callbackUrl }) {
       const data = await call('POST', '/transaction/initialize', {
