@@ -1,0 +1,7 @@
+const DISPUTE_STATUS = Object.freeze({ OPEN: 'OPEN', RESOLVED: 'RESOLVED' });
+const RESOLUTIONS = Object.freeze({
+  FULL_REFUND: 'FULL_REFUND',
+  PARTIAL_REFUND: 'PARTIAL_REFUND',
+  REJECTED: 'REJECTED',
+});
+module.exports = { DISPUTE_STATUS, RESOLUTIONS };
