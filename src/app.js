@@ -2,6 +2,7 @@ const express = require('express');
 const helmet = require('helmet');
 const cors = require('cors');
 const pinoHttp = require('pino-http');
+const { rateLimit } = require('express-rate-limit');
 
 const config = require('./config');
 const { logger } = require('./shared/logger');
@@ -10,7 +11,10 @@ const { notFoundHandler, errorHandler } = require('./shared/middleware/errorHand
 const postgres = require('./db/postgres');
 const mongo = require('./db/mongo');
 
-function createApp() {
+/**
+ * @param {{ rateLimit?: { windowMs: number, max: number } }} [options] overrides for tests
+ */
+function createApp(options = {}) {
   const app = express();
 
   app.disable('x-powered-by');
@@ -22,6 +26,26 @@ function createApp() {
   // Webhooks use express.raw() and must mount BEFORE express.json(), so the
   // HMAC is checked against the exact bytes the provider sent.
   app.use('/api/v1/webhooks', require('./modules/webhooks/webhooks.routes'));
+
+  // General rate limit per IP for the API (the webhook above and the health
+  // checks are not limited). Login has its own stricter per-email limit.
+  const limits = options.rateLimit ?? config.rateLimit;
+  if (limits.max > 0) {
+    app.use(
+      '/api/v1',
+      rateLimit({
+        windowMs: limits.windowMs,
+        limit: limits.max,
+        standardHeaders: 'draft-7',
+        legacyHeaders: false,
+        handler: (req, res) =>
+          res.status(429).json({
+            success: false,
+            error: { code: 'RATE_LIMITED', message: 'Too many requests, slow down' },
+          }),
+      }),
+    );
+  }
 
   app.use(express.json({ limit: '100kb' }));
 
