@@ -13,6 +13,15 @@ const productsRepository = {
     return Product.exists({ slug });
   },
 
+  findLiveById(id) {
+    return Product.findOne({ _id: id, ...LIVE }).lean();
+  },
+
+  /** Any products by id, deleted or inactive included (callers flag those). */
+  findByIds(ids) {
+    return Product.find({ _id: { $in: ids } }).lean();
+  },
+
   findLiveBySlug(slug) {
     return Product.findOne({ slug, ...LIVE });
   },
