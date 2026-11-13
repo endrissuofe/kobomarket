@@ -130,7 +130,7 @@ Every requirement in the assignment brief, restated in our own words as a checkl
 - [ ] Every request body and query validated with Joi or Zod. — _PARTIAL: every route so far uses `validate()`; keep it so_
 - [x] Central error middleware; error shape `{ success: false, error: { code, message, details } }`.
 - [ ] Structured logs (pino or winston) with a request ID on every line.
-- [ ] Helmet, CORS config, rate limiting; secrets only in `.env` with a committed `.env.example`; no passwords or tokens in logs. — _PARTIAL: helmet, CORS and login rate limit done; general API rate limiting not yet_
+- [x] Helmet, CORS config, rate limiting; secrets only in `.env` with a committed `.env.example`; no passwords or tokens in logs. ✓ helmet, CORS, per-IP API limit (`ratelimit.test.js`), login limit, log redaction
 - [ ] Commission rate, escrow timeout and payout minimum are configurable, not hard-coded.
 - [x] PostgreSQL schema only through migrations (Knex here); no manual table creation.
 - [ ] Seed script: 1 admin, 3 vendors, 20 products, 5 buyers with funded wallets.
