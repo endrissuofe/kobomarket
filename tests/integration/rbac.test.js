@@ -22,8 +22,12 @@ const ADMIN_ROUTES = [
   ['patch', `/api/v1/admin/vendors/${ANY_ID}/reject`, { reason: 'not allowed anyway' }],
 ];
 
-// Vendor-only routes arrive with products (step 4): POST/PATCH/DELETE /products.
-const VENDOR_ROUTES = [];
+const VENDOR_ROUTES = [
+  ['post', '/api/v1/products', { name: 'x', category: 'y', priceKobo: 100, stock: 1 }],
+  ['patch', `/api/v1/products/${ANY_ID}`, { priceKobo: 100 }],
+  ['delete', `/api/v1/products/${ANY_ID}`, undefined],
+  ['get', '/api/v1/vendors/me/products', undefined],
+];
 
 function call([method, path, body], headers = {}) {
   const req = request(app)[method](path).set(headers);

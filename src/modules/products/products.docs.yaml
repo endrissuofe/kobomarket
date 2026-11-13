@@ -1,0 +1,131 @@
+# OpenAPI fragment for products. Merged into /api-docs in plan step 12.
+# Prices are integer kobo (NGN 1 = 100 kobo). Catalogue prices only: the
+# amount a buyer pays is snapshotted in PostgreSQL at checkout.
+paths:
+  /api/v1/products:
+    get:
+      tags: [Products]
+      summary: Browse and search the catalogue (cursor pagination)
+      description: >
+        Only active, non-deleted products. `q` narrows by full-text search on name,
+        tags and description; results are ordered by `sort` (no relevance order,
+        because a relevance score cannot be used as a cursor). Pass `nextCursor`
+        back as `cursor` with the same `sort` to get the next page.
+      parameters:
+        - { name: q, in: query, schema: { type: string, maxLength: 100 } }
+        - { name: category, in: query, schema: { type: string } }
+        - { name: minPrice, in: query, schema: { type: integer, minimum: 0 }, description: kobo }
+        - { name: maxPrice, in: query, schema: { type: integer, minimum: 0 }, description: kobo }
+        - { name: vendorId, in: query, schema: { type: string } }
+        - { name: minRating, in: query, schema: { type: number, minimum: 0, maximum: 5 } }
+        - name: sort
+          in: query
+          schema: { type: string, enum: [newest, price_asc, price_desc, rating], default: newest }
+        - {
+            name: limit,
+            in: query,
+            schema: { type: integer, minimum: 1, maximum: 100, default: 20 },
+          }
+        - { name: cursor, in: query, schema: { type: string } }
+      responses:
+        '200': { description: '{ items: Product[], nextCursor: string | null }' }
+        '400': { description: Invalid cursor (or a cursor from another sort) }
+        '422': { description: VALIDATION_ERROR (e.g. minPrice=10.5) }
+    post:
+      tags: [Products]
+      summary: Create a product (vendor with an approved store)
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ProductInput' }
+      responses:
+        '201': { description: Created }
+        '403': { description: Not a vendor, or VENDOR_NOT_APPROVED }
+        '422': { description: VALIDATION_ERROR (decimal or string price, duplicate SKU, ...) }
+
+  /api/v1/products/{slug}:
+    get:
+      tags: [Products]
+      summary: One product by slug (404 if inactive or deleted)
+      parameters:
+        - { name: slug, in: path, required: true, schema: { type: string } }
+      responses:
+        '200': { description: Product }
+        '404': { description: Not found }
+
+  /api/v1/products/{id}:
+    patch:
+      tags: [Products]
+      summary: Update your own product (partial)
+      description: >
+        A product with variants takes price and stock per variant; sending a
+        top-level priceKobo or stock is refused. Sending `variants: []` removes
+        them and then needs priceKobo and stock. Stock is set to the number sent.
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ProductInput' }
+      responses:
+        '200': { description: Updated }
+        '404': { description: Not found, or owned by another vendor }
+        '422': { description: VALIDATION_ERROR }
+    delete:
+      tags: [Products]
+      summary: Soft-delete your own product
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      responses:
+        '204': { description: Deleted (hidden everywhere, kept for order history) }
+        '404': { description: Not found, already deleted, or owned by another vendor }
+
+  /api/v1/vendors/me/products:
+    get:
+      tags: [Products]
+      summary: Your own catalogue, inactive products included
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - {
+            name: sort,
+            in: query,
+            schema: { type: string, enum: [newest, price_asc, price_desc, rating] },
+          }
+        - { name: limit, in: query, schema: { type: integer } }
+        - { name: cursor, in: query, schema: { type: string } }
+      responses:
+        '200': { description: '{ items, nextCursor }' }
+
+components:
+  schemas:
+    ProductInput:
+      type: object
+      additionalProperties: false
+      properties:
+        name: { type: string, minLength: 2, maxLength: 140 }
+        description: { type: string, maxLength: 5000 }
+        category: { type: string }
+        priceKobo:
+          type: integer
+          minimum: 1
+          description: Required without variants; not allowed with variants
+        stock: { type: integer, minimum: 0, description: Required without variants }
+        variants:
+          type: array
+          maxItems: 50
+          items:
+            type: object
+            required: [sku, priceKobo, stock]
+            properties:
+              sku: { type: string }
+              attrs: { type: object, additionalProperties: { type: string }, example: { size: L } }
+              priceKobo: { type: integer, minimum: 1 }
+              stock: { type: integer, minimum: 0 }
+        tags: { type: array, items: { type: string } }
+        images: { type: array, items: { type: string, format: uri } }
+        isActive: { type: boolean }
