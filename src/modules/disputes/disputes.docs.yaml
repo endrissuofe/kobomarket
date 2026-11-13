@@ -1,0 +1,132 @@
+# OpenAPI fragment for disputes. Merged into /api-docs in plan step 12.
+components:
+  schemas:
+    Evidence:
+      type: array
+      maxItems: 10
+      items:
+        type: object
+        required: [type, value]
+        properties:
+          type: { type: string, enum: [text, image] }
+          value: { type: string, description: Text, or an image URL }
+paths:
+  /api/v1/sub-orders/{id}/disputes:
+    post:
+      tags: [Disputes]
+      summary: Open a dispute on your shipped sub-order (buyer)
+      description: >
+        The sub-order becomes DISPUTED and its escrow is frozen (auto-complete skips
+        it) until an admin resolves the dispute. Confirming delivery releases the
+        money straight away, so disputes are opened before confirming.
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [reason]
+              additionalProperties: false
+              properties:
+                reason: { type: string, minLength: 10, maxLength: 2000 }
+                evidence: { $ref: '#/components/schemas/Evidence' }
+      responses:
+        '201': { description: The open dispute }
+        '404': { description: Not found, or not your order }
+        '409':
+          { description: DISPUTE_ALREADY_OPEN or NOT_DISPUTABLE (not shipped, or already finished) }
+
+  /api/v1/disputes/{id}/respond:
+    patch:
+      tags: [Disputes]
+      summary: Reply to a dispute on your sub-order, with your own evidence (vendor, once)
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [response]
+              additionalProperties: false
+              properties:
+                response: { type: string, minLength: 10, maxLength: 2000 }
+                evidence: { $ref: '#/components/schemas/Evidence' }
+      responses:
+        '200': { description: The dispute with your reply }
+        '404': { description: Not found, or not your store's }
+        '409': { description: ALREADY_RESPONDED or DISPUTE_ALREADY_RESOLVED }
+
+  /api/v1/disputes/mine:
+    get:
+      tags: [Disputes]
+      summary: Disputes where you are the buyer or the vendor
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: status, in: query, schema: { type: string, enum: [OPEN, RESOLVED] } }
+        - { name: limit, in: query, schema: { type: integer } }
+        - { name: cursor, in: query, schema: { type: string } }
+      responses:
+        '200': { description: '{ items, nextCursor }' }
+
+  /api/v1/disputes:
+    get:
+      tags: [Disputes]
+      summary: All disputes, newest first (admin)
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: status, in: query, schema: { type: string, enum: [OPEN, RESOLVED] } }
+        - { name: limit, in: query, schema: { type: integer } }
+        - { name: cursor, in: query, schema: { type: string } }
+      responses:
+        '200': { description: '{ items, nextCursor }' }
+        '403': { description: Not an admin }
+
+  /api/v1/disputes/{id}:
+    get:
+      tags: [Disputes]
+      summary: One dispute with both sides' evidence (admin)
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        '200': { description: Dispute }
+        '404': { description: Not found }
+
+  /api/v1/disputes/{id}/resolve:
+    patch:
+      tags: [Disputes]
+      summary: Resolve an open dispute (admin)
+      description: >
+        FULL_REFUND: the whole sub-order back to the buyer (sub-order REFUNDED).
+        PARTIAL_REFUND: refundKobo to the buyer, the rest to the vendor minus
+        commission on that rest only (sub-order COMPLETED). REJECTED: released to
+        the vendor as a normal completion. The admin's id and the note are recorded.
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [resolution, note]
+              additionalProperties: false
+              properties:
+                resolution: { type: string, enum: [FULL_REFUND, PARTIAL_REFUND, REJECTED] }
+                refundKobo:
+                  type: integer
+                  minimum: 1
+                  description: Only for PARTIAL_REFUND; less than the sub-order total
+                note: { type: string, minLength: 5, maxLength: 2000 }
+      responses:
+        '200': { description: The resolved dispute }
+        '404': { description: Not found }
+        '409': { description: DISPUTE_ALREADY_RESOLVED }
+        '422': { description: VALIDATION_ERROR (missing note, refundKobo rules) }
