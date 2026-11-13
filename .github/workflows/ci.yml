@@ -33,8 +33,8 @@ jobs:
           done
           docker compose logs api
           exit 1
-      - name: Integration and concurrency tests inside the stack
-        run: docker compose exec -T -e NODE_ENV=test api npx jest --runInBand tests/integration tests/concurrency
+      - name: Integration, concurrency and job tests inside the stack
+        run: docker compose exec -T -e NODE_ENV=test api npx jest --runInBand tests/integration tests/concurrency tests/jobs
       - name: Ledger audit (money is conserved after the tests)
         run: docker compose exec -T api npm run audit:ledger
       - if: failure()
