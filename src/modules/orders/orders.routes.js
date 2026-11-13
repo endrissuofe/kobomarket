@@ -16,5 +16,6 @@ router.post(
 );
 router.get('/', validate({ query: schemas.listOrdersQuery }), ordersController.list);
 router.get('/:id', validate({ params: schemas.orderIdParams }), ordersController.get);
+router.post('/:id/cancel', validate({ params: schemas.orderIdParams }), ordersController.cancel);
 
 module.exports = router;

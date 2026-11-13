@@ -197,6 +197,14 @@ const ordersRepository = {
     return subs.map((x) => ({ ...x, items: items.filter((i) => i.subOrderId === x.id) }));
   },
 
+  /** Items of these sub-orders (for restocking). */
+  async itemsOfSubOrders(conn, subOrderIds) {
+    if (subOrderIds.length === 0) return [];
+    return (await conn('order_items').whereIn('sub_order_id', subOrderIds).orderBy('id')).map(
+      toItem,
+    );
+  },
+
   async historyOf(conn, subOrderId) {
     return conn('order_status_history').where({ sub_order_id: subOrderId }).orderBy('id');
   },
