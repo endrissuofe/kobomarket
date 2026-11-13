@@ -27,6 +27,12 @@ const VENDOR_ROUTES = [
   ['patch', `/api/v1/products/${ANY_ID}`, { priceKobo: 100 }],
   ['delete', `/api/v1/products/${ANY_ID}`, undefined],
   ['get', '/api/v1/vendors/me/products', undefined],
+  ['get', '/api/v1/vendors/me/sub-orders', undefined],
+  [
+    'patch',
+    '/api/v1/sub-orders/00000000-0000-4000-8000-000000000000/ship',
+    { courierName: 'GIG', trackingNumber: 'T-1' },
+  ],
 ];
 
 function call([method, path, body], headers = {}) {

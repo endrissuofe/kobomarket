@@ -83,15 +83,12 @@ describe('POST /orders/:id/cancel', () => {
 
   test('if any sub-order has shipped, nothing is cancelled', async () => {
     const { buyer, order } = await paidOrder();
-    await postgres
-      .db('sub_orders')
-      .where({ id: order.subOrders[0].id })
-      .update({
-        status: 'SHIPPED',
-        courier_name: 'GIG',
-        tracking_number: 'T1',
-        shipped_at: postgres.db.fn.now(),
-      });
+    await postgres.db('sub_orders').where({ id: order.subOrders[0].id }).update({
+      status: 'SHIPPED',
+      courier_name: 'GIG',
+      tracking_number: 'T1',
+      shipped_at: postgres.db.fn.now(),
+    });
 
     const res = await cancel(buyer, order.id);
     expect(res.status).toBe(409);
