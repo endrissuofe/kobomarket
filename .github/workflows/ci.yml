@@ -43,12 +43,12 @@ jobs:
       # relayed (SENT), along with anything the tests left PENDING.
       - name: Worker relays the outbox through Redis
         run: |
-          probe=$(docker compose exec -T postgres psql -U kobo -d kobomarket -tAc \
+          probe=$(docker compose exec -T postgres psql -U kobo -d kobomarket -qtAc \
             "INSERT INTO outbox_events (aggregate, aggregate_id, event_type) VALUES ('ci', 'probe', 'ci.probe') RETURNING id")
           echo "probe outbox id: $probe"
           docker compose start worker
           for i in $(seq 1 45); do
-            state=$(docker compose exec -T postgres psql -U kobo -d kobomarket -tAc \
+            state=$(docker compose exec -T postgres psql -U kobo -d kobomarket -qtAc \
               "SELECT (SELECT status FROM outbox_events WHERE id = $probe) || ' ' ||
                       (SELECT count(*) FROM outbox_events WHERE status = 'PENDING' AND next_attempt_at <= now())")
             echo "probe status, PENDING due: $state"
