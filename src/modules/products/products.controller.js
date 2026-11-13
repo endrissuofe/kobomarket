@@ -21,6 +21,16 @@ const productsController = {
     await productsService.remove(req.user, req.params.id);
     res.status(204).end();
   }),
+
+  list: asyncHandler(async (req, res) => {
+    const page = await productsService.list(req.query);
+    res.json({ success: true, data: page });
+  }),
+
+  listMine: asyncHandler(async (req, res) => {
+    const page = await productsService.listMine(req.user, req.query);
+    res.json({ success: true, data: page });
+  }),
 };
 
 module.exports = { productsController };
