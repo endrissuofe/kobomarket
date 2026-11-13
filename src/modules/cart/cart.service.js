@@ -151,4 +151,20 @@ async function removeItem(user, itemId) {
   return review(user.id);
 }
 
-module.exports = { cartService: { review, addItem, updateItem, removeItem }, LINE_PROBLEMS };
+/** Store the live price on lines flagged PRICE_CHANGED (the buyer has now seen it). */
+async function acceptPrices(userId, reviewedItems) {
+  for (const item of reviewedItems) {
+    if (item.problems.includes(LINE_PROBLEMS.PRICE_CHANGED) && item.unitPriceKobo !== null) {
+      await cartRepository.setLinePrice(userId, item.id, item.unitPriceKobo);
+    }
+  }
+}
+
+function removeOrderedLines(userId, itemIds) {
+  return cartRepository.removeLines(userId, itemIds);
+}
+
+module.exports = {
+  cartService: { review, addItem, updateItem, removeItem, acceptPrices, removeOrderedLines },
+  LINE_PROBLEMS,
+};
