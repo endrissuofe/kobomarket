@@ -32,6 +32,19 @@ const authController = {
     await authService.logout(req.body);
     res.status(204).end();
   }),
+
+  forgotPassword: asyncHandler(async (req, res) => {
+    await authService.forgotPassword(req.body);
+    res.json({
+      success: true,
+      data: { message: 'If an account exists for that email, a reset token has been sent' },
+    });
+  }),
+
+  resetPassword: asyncHandler(async (req, res) => {
+    await authService.resetPassword(req.body);
+    res.json({ success: true, data: { message: 'Password updated. Please log in again.' } });
+  }),
 };
 
 module.exports = { authController };

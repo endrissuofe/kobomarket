@@ -14,5 +14,15 @@ router.post(
 router.post('/login', validate({ body: schemas.loginBody }), authController.login);
 router.post('/refresh', validate({ body: schemas.refreshBody }), authController.refresh);
 router.post('/logout', validate({ body: schemas.refreshBody }), authController.logout);
+router.post(
+  '/forgot-password',
+  validate({ body: schemas.forgotPasswordBody }),
+  authController.forgotPassword,
+);
+router.post(
+  '/reset-password',
+  validate({ body: schemas.resetPasswordBody }),
+  authController.resetPassword,
+);
 
 module.exports = router;

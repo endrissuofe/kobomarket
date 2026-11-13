@@ -9,7 +9,7 @@ const { usersRepository } = require('../users/users.repository');
 const { usersService } = require('../users/users.service');
 const { authRepository } = require('./auth.repository');
 const { TOKEN_TYPES } = require('./verificationToken.model');
-const { randomToken, hashToken, signAccessToken } = require('./auth.tokens');
+const { randomToken, hashToken, signAccessToken, verifyAccessToken } = require('./auth.tokens');
 const { LOGIN_WINDOW_SECONDS } = require('./loginAttempt.model');
 const {
   AppError,
@@ -20,6 +20,7 @@ const {
 } = require('../../shared/errors');
 
 const EMAIL_TOKEN_TTL_MS = 24 * 60 * 60 * 1000;
+const RESET_TOKEN_TTL_MS = 30 * 60 * 1000;
 const ARGON2_OPTIONS = { type: argon2.argon2id };
 const MAX_LOGIN_ATTEMPTS = 5;
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -194,4 +195,82 @@ async function logout({ refreshToken }) {
   if (session) await authRepository.revokeSessionFamily(session.familyId);
 }
 
-module.exports = { authService: { register, verifyEmail, login, refresh, logout } };
+/**
+ * Always succeeds, whether or not the email exists, so the endpoint cannot be
+ * used to find out who has an account. A new link retires older unused ones.
+ */
+async function forgotPassword({ email }) {
+  const user = await usersRepository.findByEmail(email);
+  if (!user) return;
+  await authRepository.expireUnusedTokens({ userId: user._id, type: TOKEN_TYPES.RESET });
+  const token = await issueEmailToken(user, TOKEN_TYPES.RESET, RESET_TOKEN_TTL_MS);
+  await mailer.send({
+    to: user.email,
+    subject: 'Reset your KoboMarket password',
+    text:
+      `Your password reset token (valid 30 minutes):\n${token}\n\n` +
+      `POST /api/v1/auth/reset-password with {"token": "<token>", "password": "<new password>"}`,
+  });
+}
+
+/**
+ * Set a new password and sign out every session. Following the emailed link
+ * also proves the user owns the address, so an unverified email is verified.
+ */
+async function resetPassword({ token, password }) {
+  const record = await authRepository.consumeVerificationToken({
+    tokenHash: hashToken(token),
+    type: TOKEN_TYPES.RESET,
+  });
+  if (!record) throw invalidToken();
+  await usersRepository.setPasswordHash(record.userId, await argon2.hash(password, ARGON2_OPTIONS));
+  await usersRepository.markEmailVerified(record.userId);
+  await authRepository.revokeAllUserSessions(record.userId);
+}
+
+/**
+ * Resolve an access token to the current user. Besides the JWT signature and
+ * expiry, the session must not be revoked (logout, token reuse, password reset
+ * take effect at once), and roles/status come from the database, not the token,
+ * so a vendor approval or a freeze applies without logging in again.
+ */
+async function authenticate(accessToken) {
+  let claims;
+  try {
+    claims = verifyAccessToken(accessToken);
+  } catch (err) {
+    if (err.name === 'TokenExpiredError') {
+      throw unauthorized('Access token has expired', 'TOKEN_EXPIRED');
+    }
+    throw unauthorized('Access token is invalid', 'INVALID_TOKEN');
+  }
+
+  const [revoked, user] = await Promise.all([
+    authRepository.isSessionFamilyRevoked(claims.sid),
+    usersRepository.findById(claims.sub),
+  ]);
+  if (revoked) throw unauthorized('This session has been signed out', 'SESSION_REVOKED');
+  if (!user) throw unauthorized('Access token is invalid', 'INVALID_TOKEN');
+
+  return {
+    id: String(user._id),
+    email: user.email,
+    roles: user.roles,
+    status: user.status,
+    walletStatus: user.walletStatus,
+    sessionId: claims.sid,
+  };
+}
+
+module.exports = {
+  authService: {
+    register,
+    verifyEmail,
+    login,
+    refresh,
+    logout,
+    forgotPassword,
+    resetPassword,
+    authenticate,
+  },
+};
