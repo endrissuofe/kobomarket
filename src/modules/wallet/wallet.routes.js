@@ -8,6 +8,12 @@ const schemas = require('./wallet.schemas');
 const router = Router();
 router.use(requireAuth);
 
+router.get('/', walletController.getWallet);
+router.get(
+  '/transactions',
+  validate({ query: schemas.transactionsQuery }),
+  walletController.listTransactions,
+);
 router.post(
   '/fund',
   validate({ body: schemas.fundBody }),

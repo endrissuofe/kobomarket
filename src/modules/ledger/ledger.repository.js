@@ -66,6 +66,38 @@ function createLedgerRepository() {
       return toAccount(row) || null;
     },
 
+    /**
+     * One account's entries, newest first, with their transaction's type and
+     * reference. Keyset on the entry id (BIGSERIAL, so it only grows).
+     */
+    async listAccountEntries(db, accountId, { beforeId, limit }) {
+      const query = db('ledger_entries as e')
+        .join('transactions as t', 't.id', 'e.transaction_id')
+        .where('e.account_id', accountId)
+        .orderBy('e.id', 'desc')
+        .limit(limit)
+        .select(
+          'e.id',
+          'e.direction',
+          'e.amount_kobo',
+          'e.created_at',
+          't.id as transaction_id',
+          't.type',
+          't.reference',
+        );
+      if (beforeId) query.where('e.id', '<', beforeId);
+      const rows = await query;
+      return rows.map((r) => ({
+        id: r.id,
+        transactionId: r.transaction_id,
+        type: r.type,
+        reference: r.reference,
+        direction: r.direction,
+        amountKobo: r.amount_kobo,
+        createdAt: r.created_at,
+      }));
+    },
+
     async findAccountById(db, id) {
       return toAccount(await db('accounts').where({ id }).first()) || null;
     },

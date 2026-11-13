@@ -90,6 +90,11 @@ function createLedgerService({ db, repository }) {
     });
   }
 
+  /** An account's statement, newest first: { beforeId?, limit }. */
+  function listEntries(accountId, { beforeId, limit }, trx) {
+    return repository.listAccountEntries(trx || db, accountId, { beforeId, limit });
+  }
+
   /** Look up a system account by name, e.g. SYSTEM_ACCOUNTS.PLATFORM_ESCROW. */
   async function getSystemAccount(name, trx) {
     const account = await repository.findAccount(trx || db, {
@@ -131,6 +136,7 @@ function createLedgerService({ db, repository }) {
     post,
     openUserAccount,
     findUserAccount,
+    listEntries,
     getSystemAccount,
     getAccount,
     audit,
