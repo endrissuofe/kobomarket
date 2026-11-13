@@ -81,6 +81,25 @@ const createBody = z
   .strict()
   .superRefine((body, ctx) => checkVariants(body, ctx, { requireBase: true }));
 
+// Every field optional, at least one. Whether priceKobo/stock may be sent
+// also depends on the stored product (does it have variants?), which the
+// service checks.
+const updateBody = z
+  .object({
+    name: fields.name.optional(),
+    description: fields.description.optional(),
+    category: fields.category.optional(),
+    priceKobo: fields.priceKobo.optional(),
+    stock: fields.stock.optional(),
+    variants: fields.variants.optional(),
+    tags: fields.tags.optional(),
+    images: fields.images.optional(),
+    isActive: fields.isActive.optional(),
+  })
+  .strict()
+  .refine((body) => Object.keys(body).length > 0, { message: 'Nothing to update' })
+  .superRefine((body, ctx) => checkVariants(body, ctx, { requireBase: false }));
+
 const slugParams = z.object({ slug: z.string().trim().min(1).max(100) });
 
-module.exports = { createBody, slugParams, fields, checkVariants };
+module.exports = { createBody, updateBody, slugParams };
