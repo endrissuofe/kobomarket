@@ -40,15 +40,30 @@ const walletRepository = {
     await conn('wallet_fundings').where({ id }).update({ authorization_url: authorizationUrl });
   },
 
+  async findByReference(conn, reference) {
+    return toFunding(await conn('wallet_fundings').where({ reference }).first());
+  },
+
+  /** Lock the funding row for the rest of the transaction. */
+  async lockById(trx, id) {
+    return toFunding(await trx('wallet_fundings').where({ id }).forUpdate().first());
+  },
+
+  async markSuccess(trx, id, transactionId) {
+    await trx('wallet_fundings').where({ id, status: FUNDING_STATUS.INITIATED }).update({
+      status: FUNDING_STATUS.SUCCESS,
+      transaction_id: transactionId,
+      completed_at: trx.fn.now(),
+    });
+  },
+
   /** Only an INITIATED funding can fail; a SUCCESS is final. */
   async markFailed(conn, id, reason) {
-    await conn('wallet_fundings')
-      .where({ id, status: FUNDING_STATUS.INITIATED })
-      .update({
-        status: FUNDING_STATUS.FAILED,
-        failure_reason: reason,
-        completed_at: conn.fn.now(),
-      });
+    await conn('wallet_fundings').where({ id, status: FUNDING_STATUS.INITIATED }).update({
+      status: FUNDING_STATUS.FAILED,
+      failure_reason: reason,
+      completed_at: conn.fn.now(),
+    });
   },
 };
 
