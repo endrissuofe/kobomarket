@@ -9,6 +9,11 @@ const ordersController = {
     res.status(201).json({ success: true, data: { order } });
   }),
 
+  cancel: asyncHandler(async (req, res) => {
+    const order = await ordersService.cancelOrder(req.user, req.params.id);
+    res.json({ success: true, data: { order } });
+  }),
+
   list: asyncHandler(async (req, res) => {
     res.json({ success: true, data: await ordersService.listOrdersForBuyer(req.user, req.query) });
   }),

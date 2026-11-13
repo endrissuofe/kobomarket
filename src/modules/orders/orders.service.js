@@ -296,8 +296,75 @@ async function listSubOrdersForVendor(user, { status, limit, cursor }) {
   return { items: page.items.map(withoutCursor), nextCursor: page.nextCursor };
 }
 
+/**
+ * Cancel an order before anything has shipped. All or nothing: every
+ * sub-order must still be PAID, otherwise 409 and nothing changes. One REFUND
+ * moves the whole amount from escrow back to the buyer; stock is put back
+ * after the transaction commits (a failed restock becomes a compensation).
+ */
+async function cancelOrder(buyer, orderId) {
+  const order = await ordersRepository.findOrder(db, orderId);
+  if (!order || order.buyerId !== buyer.id) throw notFound('Order');
+
+  const cancelledIds = await withTransaction(async (trx) => {
+    // Lock order: sub-orders first, then (inside post) the accounts.
+    const subOrders = await ordersRepository.lockSubOrdersOfOrder(trx, order.id);
+    const notPaid = subOrders.filter((s) => s.status !== S.PAID);
+    if (notPaid.length > 0) {
+      throw conflict(
+        'ORDER_NOT_CANCELLABLE',
+        'Only orders where nothing has shipped yet can be cancelled',
+        { subOrders: subOrders.map((s) => ({ id: s.id, status: s.status })) },
+      );
+    }
+
+    const refundKobo = subOrders.reduce((sum, s) => sum + s.subtotalKobo, 0);
+    const escrow = await LedgerService.getSystemAccount(SYSTEM_ACCOUNTS.PLATFORM_ESCROW, trx);
+    const { transaction } = await LedgerService.post(
+      {
+        reference: `ORD-${order.id}-CANCEL`,
+        type: TRANSACTION_TYPES.REFUND,
+        entries: [
+          { accountId: escrow.id, direction: 'debit', amountKobo: refundKobo },
+          { accountId: order.buyerAccountId, direction: 'credit', amountKobo: refundKobo },
+        ],
+        metadata: { orderId: order.id, reason: 'buyer cancelled' },
+      },
+      trx,
+    );
+
+    for (const sub of subOrders) {
+      await transition(trx, sub, S.CANCELLED, {
+        actorId: buyer.id,
+        reason: 'buyer cancelled before shipping',
+        fields: { cancelled_at: trx.fn.now(), refund_txn_id: transaction.id },
+      });
+    }
+    await outboxRepository.add(trx, {
+      aggregate: 'order',
+      aggregateId: order.id,
+      eventType: OUTBOX_EVENTS.ORDER_CANCELLED,
+      payload: {
+        orderId: order.id,
+        buyerId: buyer.id,
+        refundKobo,
+        subOrders: subOrders.map((s) => ({ id: s.id, vendorUserId: s.vendorUserId })),
+      },
+    });
+    return subOrders.map((s) => s.id);
+  });
+
+  const items = await ordersRepository.itemsOfSubOrders(db, cancelledIds);
+  await stockService.release(
+    items.map((i) => ({ productId: i.productId, variantSku: i.variantSku, qty: i.qty })),
+    `order ${order.id} cancelled`,
+  );
+  return getOrder(order.id);
+}
+
 module.exports = {
   ordersService: {
+    cancelOrder,
     placeOrder,
     checkout,
     getOrder,
