@@ -49,7 +49,7 @@ Started 5 Nov; the four-week clock ends around **3 Dec 2026**. Week 1's progress
 
 - Integration tests run against Neon `production`. Create a Neon `test` branch and point tests at it.
 - App connects as the table owner, so the trigger is the only guard on ledger rows. Add a restricted app role with UPDATE/DELETE revoked.
-- MongoDB and auth are done (13 Nov). No Redis, vendors, products or money routes yet.
+- MongoDB, auth and vendors are done (13 Nov). No Redis, products or money routes yet.
 
 ## 2. Data ownership
 

@@ -50,7 +50,8 @@ Node.js 22 (CommonJS) · Express · Knex + `pg` on PostgreSQL (Neon) · Mongoose
 - [x] Week 1 ledger: migrations for `accounts`, `transactions`, `ledger_entries` (UPDATE/DELETE/TRUNCATE blocked on entries and transactions; deferred balanced check), system accounts, `settings` (+ defaults), `outbox_events`, `idempotency_keys`; `LedgerService.post()` (`src/modules/ledger`); unit, integration and concurrency tests; real `npm run audit:ledger` (also runs in CI)
 - [x] MongoDB wired (`src/db/mongo.js`, indexes built in `connect()`, readiness checks both DBs)
 - [x] Auth (Module A): register (+ wallet, PENDING on failure), verify email, login (5 per 15 min per email + IP), refresh rotation with reuse → all sessions revoked, logout, forgot/reset; `requireAuth` / `requireRole` (`src/shared/middleware/auth.js`); `GET /users/me`. Required tests 1 and 2 in `tests/integration/auth.*.test.js`
-- [ ] **Next:** vendors (apply, admin approve/reject, `GET /vendors/:id`, required test 3), then products (CRUD + search, cursor pagination)
+- [x] Vendors (Module B): apply (re-apply after rejection), `GET /vendors/me`, public `GET /vendors/:id` (approved only, no bank details), admin list/approve/reject under `/admin/vendors` (approve is idempotent and grants the `vendor` role); `npm run make-admin -- <email>`. Required test 3 in `tests/integration/rbac.test.js`: add every new vendor/admin route to its tables
+- [ ] **Next:** products (CRUD with variants, soft delete, text search, filters, sort, cursor pagination; helper in `src/shared/http/cursor.js`)
 - [ ] Later: separate Neon `test` branch for integration tests (they currently run against `production`); restricted app DB role with UPDATE/DELETE revoked on ledger tables (the app connects as table owner today, so the trigger is the real guard)
 
 ## Ledger testing note
