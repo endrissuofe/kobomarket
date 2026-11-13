@@ -5,6 +5,10 @@ process.env.NODE_ENV = 'test';
 const request = require('supertest');
 const { createApp } = require('../../src/app');
 const postgres = require('../../src/db/postgres');
+const { useMongo } = require('../helpers/mongo');
+
+// Readiness needs both databases up.
+useMongo();
 
 afterAll(() => postgres.close());
 
