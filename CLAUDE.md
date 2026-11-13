@@ -48,9 +48,11 @@ Node.js 22 (CommonJS) · Express · Knex + `pg` on PostgreSQL (Neon) · Mongoose
 - [x] Scaffold, config validation, logger with request IDs, error middleware, money helpers, CI with Docker smoke test
 - [x] Postgres wired (pooled for app, direct for migrations), `/health/ready`
 - [x] Week 1 ledger: migrations for `accounts`, `transactions`, `ledger_entries` (UPDATE/DELETE/TRUNCATE blocked on entries and transactions; deferred balanced check), system accounts, `settings` (+ defaults), `outbox_events`, `idempotency_keys`; `LedgerService.post()` (`src/modules/ledger`); unit, integration and concurrency tests; real `npm run audit:ledger` (also runs in CI)
-- [ ] **Next:** Auth (MongoDB), RBAC, vendors, products (CRUD + search, cursor pagination)
+- [x] MongoDB wired (`src/db/mongo.js`, indexes built in `connect()`, readiness checks both DBs)
+- [x] Auth (Module A): register (+ wallet, PENDING on failure), verify email, login (5 per 15 min per email + IP), refresh rotation with reuse → all sessions revoked, logout, forgot/reset; `requireAuth` / `requireRole` (`src/shared/middleware/auth.js`); `GET /users/me`. Required tests 1 and 2 in `tests/integration/auth.*.test.js`
+- [ ] **Next:** vendors (apply, admin approve/reject, `GET /vendors/:id`, required test 3), then products (CRUD + search, cursor pagination)
 - [ ] Later: separate Neon `test` branch for integration tests (they currently run against `production`); restricted app DB role with UPDATE/DELETE revoked on ledger tables (the app connects as table owner today, so the trigger is the real guard)
 
 ## Ledger testing note
 
-The ledger is append-only and TRUNCATE is blocked, so tests never wipe tables. Each test opens its own wallets with a unique owner id (`tests/helpers/ledger.js`) and funds them through `LedgerService.post()`. Assert on your own accounts, not on global counts.
+The ledger is append-only and TRUNCATE is blocked, so tests never wipe tables. Each test opens its own wallets with a unique owner id (`tests/helpers/ledger.js`) and funds them through `LedgerService.post()`. Assert on your own accounts, not on global counts. Auth tests do the same with a unique email per test (`tests/helpers/auth.js`); in tests the console mailer keeps emails in memory and `tokenFromEmail()` reads the token.
