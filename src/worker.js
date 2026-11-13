@@ -13,6 +13,7 @@ const { runAutoComplete } = require('./jobs/auto-complete');
 const { runWalletReconciler } = require('./jobs/wallet-reconciler');
 const { runCompensationRetry } = require('./jobs/compensation-retry');
 const { runIdempotencyCleanup } = require('./jobs/idempotency-cleanup');
+const { runPayoutProcessor } = require('./jobs/payout-processor');
 const { handleEvent } = require('./jobs/event-handlers');
 
 const EVENT_ATTEMPTS = 5;
@@ -21,6 +22,7 @@ const EVENT_ATTEMPTS = 5;
 const SCHEDULE = {
   'outbox-relay': { every: 2_000, run: () => relayOutbox({ publish: publishEvent }) },
   'auto-complete': { every: 60_000, run: () => runAutoComplete() },
+  'payout-processor': { every: 30_000, run: () => runPayoutProcessor() },
   'wallet-reconciler': { every: 30_000, run: () => runWalletReconciler() },
   'compensation-retry': { every: 60_000, run: () => runCompensationRetry() },
   'idempotency-cleanup': { every: 24 * 3_600_000, run: () => runIdempotencyCleanup() },
