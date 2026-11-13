@@ -49,7 +49,7 @@ Started 5 Nov; the four-week clock ends around **3 Dec 2026**. Week 1's progress
 
 - Integration tests run against Neon `production`. Create a Neon `test` branch and point tests at it.
 - App connects as the table owner, so the trigger is the only guard on ledger rows. Add a restricted app role with UPDATE/DELETE revoked.
-- MongoDB, auth, vendors, products and wallet funding are done (13 Nov). No Redis or cart yet. Reviews (product rating) wait for completed orders.
+- MongoDB, auth, vendors, products, wallet funding and cart are done (13 Nov). No Redis or orders yet. Reviews (product rating) wait for completed orders.
 
 ## 2. Data ownership
 
@@ -210,5 +210,5 @@ Bonus (only after the above): BullMQ with retries + dead-letter queue, CI (done)
 ## 14. Open questions for Drix
 
 - Will the marker accept reserve-first checkout? (Ask at the progress check.)
-- Should a vendor be blocked from buying from their own store?
+- ~~Should a vendor be blocked from buying from their own store?~~ Decided 13 Nov: yes (brief is silent; recorded in README "Assumptions").
 - Auto-complete 72 h after DELIVERED too, or only after SHIPPED as the brief says?
