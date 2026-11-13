@@ -8,6 +8,12 @@ const { uniqueRef, makeWallet } = require('../helpers/ledger');
 
 afterAll(() => postgres.close());
 
+// Transfers on the same rows queue behind each other's lock, so a race takes
+// roughly (number of transfers) x (one transaction's round trips). Against a
+// remote database (Neon at 100-300 ms per round trip) that is well past Jest's
+// default 20 s, even though nothing is stuck.
+const RACE_TIMEOUT_MS = 90_000;
+
 const transfer = (from, to, amountKobo, type = TRANSACTION_TYPES.ESCROW_HOLD) =>
   LedgerService.post({
     reference: uniqueRef('RACE'),
@@ -31,7 +37,7 @@ test('10 parallel debits against a balance that covers 5: exactly 5 succeed', as
   expect(ok).toHaveLength(5);
   expect(refused.map((r) => r.reason.code)).toEqual(Array(5).fill('INSUFFICIENT_FUNDS'));
   expect((await LedgerService.getAccount(wallet.id)).balanceKobo).toBe(0);
-});
+}, RACE_TIMEOUT_MS);
 
 test('opposite-direction transfers between two wallets never deadlock', async () => {
   const a = await makeWallet({ balance: 10000 });
@@ -57,7 +63,7 @@ test('opposite-direction transfers between two wallets never deadlock', async ()
   expect(after1.balanceKobo + after2.balanceKobo).toBe(20000);
   // Even indexes moved A→B (sum 100+102+...+118), odd ones B→A (101+...+119).
   expect(after1.balanceKobo).toBe(10000 - 1090 + 1100);
-});
+}, RACE_TIMEOUT_MS);
 
 test('the ledger still audits clean after the races', async () => {
   const report = await LedgerService.audit();
