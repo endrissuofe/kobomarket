@@ -197,6 +197,34 @@ const ordersRepository = {
     return subs.map((x) => ({ ...x, items: items.filter((i) => i.subOrderId === x.id) }));
   },
 
+  /** Ids of SHIPPED sub-orders whose escrow timeout has passed, oldest first. */
+  async findDueForAutoComplete(conn, limit) {
+    const rows = await conn('sub_orders')
+      .where({ status: 'SHIPPED' })
+      .where('auto_complete_at', '<=', conn.fn.now())
+      .orderBy('auto_complete_at')
+      .limit(limit)
+      .select('id');
+    return rows.map((r) => r.id);
+  },
+
+  /**
+   * Lock a sub-order only if it is still SHIPPED and due. SKIP LOCKED: if a
+   * buyer's confirm or another worker holds it, skip it instead of waiting.
+   * Returns null when it is locked elsewhere or no longer eligible (e.g. it
+   * was disputed or confirmed in the meantime).
+   */
+  async lockDueSubOrder(trx, id) {
+    return toSubOrder(
+      await trx('sub_orders')
+        .where({ id, status: 'SHIPPED' })
+        .where('auto_complete_at', '<=', trx.fn.now())
+        .forUpdate()
+        .skipLocked()
+        .first(),
+    );
+  },
+
   /** Items of these sub-orders (for restocking). */
   async itemsOfSubOrders(conn, subOrderIds) {
     if (subOrderIds.length === 0) return [];

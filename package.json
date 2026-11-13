@@ -22,7 +22,7 @@
     "format": "prettier --write .",
     "test": "jest --runInBand",
     "test:unit": "jest tests/unit",
-    "test:integration": "jest --runInBand tests/integration tests/concurrency",
+    "test:integration": "jest --runInBand tests/integration tests/concurrency tests/jobs",
     "make-admin": "node scripts/make-admin.js"
   },
   "dependencies": {
