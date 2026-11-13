@@ -2,6 +2,7 @@ const { randomUUID } = require('node:crypto');
 const { db, withTransaction } = require('../../db/postgres');
 const { AppError, badRequest, conflict, forbidden, notFound } = require('../../shared/errors');
 const { decodeCursor, paginate } = require('../../shared/http/cursor');
+const { splitByBps } = require('../../shared/money/kobo');
 const { approvedStoreOf } = require('../products/products.service');
 const { logger } = require('../../shared/logger');
 const { LedgerService, SYSTEM_ACCOUNTS, TRANSACTION_TYPES } = require('../ledger');
@@ -362,8 +363,128 @@ async function cancelOrder(buyer, orderId) {
   return getOrder(order.id);
 }
 
+// --- Shipping, delivery and release ---
+
+/**
+ * Release a sub-order's escrow: PLATFORM_ESCROW -> vendor wallet (net) and
+ * PLATFORM_REVENUE (commission, at the rate snapshotted at checkout;
+ * commission rounds down, the vendor gets the remainder), then -> COMPLETED.
+ * Must run inside the caller's transaction with the sub-order row locked.
+ * The transition is checked before any money moves, so an invalid release
+ * (e.g. PAID -> COMPLETED) writes nothing. Used by confirm, the auto-complete
+ * job and dispute resolution.
+ */
+async function releaseEscrow(trx, subOrder, { actorId, reason }) {
+  assertTransition(subOrder.status, S.COMPLETED);
+
+  const { commission, net } = splitByBps(subOrder.subtotalKobo, subOrder.commissionBps);
+  const [escrow, revenue, vendorAccount] = await Promise.all([
+    LedgerService.getSystemAccount(SYSTEM_ACCOUNTS.PLATFORM_ESCROW, trx),
+    LedgerService.getSystemAccount(SYSTEM_ACCOUNTS.PLATFORM_REVENUE, trx),
+    LedgerService.openUserAccount(subOrder.vendorUserId, trx),
+  ]);
+  const entries = [{ accountId: escrow.id, direction: 'debit', amountKobo: subOrder.subtotalKobo }];
+  if (net > 0) entries.push({ accountId: vendorAccount.id, direction: 'credit', amountKobo: net });
+  if (commission > 0) {
+    entries.push({ accountId: revenue.id, direction: 'credit', amountKobo: commission });
+  }
+
+  const { transaction } = await LedgerService.post(
+    {
+      reference: `SUB-${subOrder.id}-RELEASE`,
+      type: TRANSACTION_TYPES.ESCROW_RELEASE,
+      entries,
+      metadata: {
+        subOrderId: subOrder.id,
+        orderId: subOrder.orderId,
+        commissionBps: subOrder.commissionBps,
+        commissionKobo: commission,
+        vendorNetKobo: net,
+      },
+    },
+    trx,
+  );
+
+  const completed = await transition(trx, subOrder, S.COMPLETED, {
+    actorId,
+    reason,
+    fields: { completed_at: trx.fn.now(), release_txn_id: transaction.id },
+  });
+  await outboxRepository.add(trx, {
+    aggregate: 'sub_order',
+    aggregateId: subOrder.id,
+    eventType: OUTBOX_EVENTS.FUNDS_RELEASED,
+    payload: {
+      subOrderId: subOrder.id,
+      orderId: subOrder.orderId,
+      vendorUserId: subOrder.vendorUserId,
+      vendorNetKobo: net,
+      commissionKobo: commission,
+    },
+  });
+  return completed;
+}
+
+/** Vendor marks their sub-order shipped; the escrow timeout clock starts. */
+async function ship(user, subOrderId, { courierName, trackingNumber }) {
+  const store = await approvedStoreOf(user);
+  await withTransaction(async (trx) => {
+    const sub = await ordersRepository.lockSubOrder(trx, subOrderId);
+    if (!sub || sub.vendorId !== String(store._id)) throw notFound('Sub-order');
+    const { escrowTimeoutHours } = await settingsService.getBusinessSettings(trx);
+    const order = await ordersRepository.findOrder(trx, sub.orderId);
+
+    await transition(trx, sub, S.SHIPPED, {
+      actorId: user.id,
+      reason: `shipped with ${courierName}`,
+      fields: {
+        courier_name: courierName,
+        tracking_number: trackingNumber,
+        shipped_at: trx.fn.now(),
+        auto_complete_at: trx.raw('now() + make_interval(hours => ?)', [escrowTimeoutHours]),
+      },
+    });
+    await outboxRepository.add(trx, {
+      aggregate: 'sub_order',
+      aggregateId: sub.id,
+      eventType: OUTBOX_EVENTS.SUB_ORDER_SHIPPED,
+      payload: {
+        subOrderId: sub.id,
+        orderId: sub.orderId,
+        buyerId: order.buyerId,
+        courierName,
+        trackingNumber,
+      },
+    });
+  });
+  return ordersRepository.findSubOrder(db, subOrderId);
+}
+
+/**
+ * Buyer confirms delivery: SHIPPED -> DELIVERED, then straight away
+ * DELIVERED -> COMPLETED with the escrow release, in one transaction.
+ */
+async function confirmDelivery(buyer, subOrderId) {
+  await withTransaction(async (trx) => {
+    const sub = await ordersRepository.lockSubOrder(trx, subOrderId);
+    const order = sub && (await ordersRepository.findOrder(trx, sub.orderId));
+    if (!order || order.buyerId !== buyer.id) throw notFound('Sub-order');
+
+    const delivered = await transition(trx, sub, S.DELIVERED, {
+      actorId: buyer.id,
+      reason: 'buyer confirmed delivery',
+      fields: { delivered_at: trx.fn.now() },
+    });
+    await releaseEscrow(trx, delivered, { actorId: 'system', reason: 'released after delivery' });
+  });
+  return ordersRepository.findSubOrder(db, subOrderId);
+}
+
 module.exports = {
+  releaseEscrow,
   ordersService: {
+    ship,
+    confirmDelivery,
     cancelOrder,
     placeOrder,
     checkout,

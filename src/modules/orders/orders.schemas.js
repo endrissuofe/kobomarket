@@ -14,4 +14,17 @@ const vendorSubOrdersQuery = pageQuery.extend({
   status: z.enum(Object.values(SUB_ORDER_STATUS)).optional(),
 });
 
-module.exports = { checkoutBody, orderIdParams, listOrdersQuery, vendorSubOrdersQuery };
+const shipBody = z
+  .object({
+    courierName: z.string().trim().min(2).max(60),
+    trackingNumber: z.string().trim().min(3).max(60),
+  })
+  .strict();
+
+module.exports = {
+  checkoutBody,
+  orderIdParams,
+  listOrdersQuery,
+  vendorSubOrdersQuery,
+  shipBody,
+};
