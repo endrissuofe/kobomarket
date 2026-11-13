@@ -19,10 +19,15 @@ function createApp() {
   app.use(helmet());
   app.use(cors({ origin: config.corsOrigins.length ? config.corsOrigins : false }));
 
-  // The Paystack webhook route will mount here with express.raw() BEFORE json(),
-  // so the HMAC is checked against the exact bytes Paystack sent.
+  // Webhooks use express.raw() and must mount BEFORE express.json(), so the
+  // HMAC is checked against the exact bytes the provider sent.
+  app.use('/api/v1/webhooks', require('./modules/webhooks/webhooks.routes'));
 
   app.use(express.json({ limit: '100kb' }));
+
+  if (config.payments.provider === 'mock') {
+    app.use('/mock-paystack', require('./integrations/payments/mock.routes'));
+  }
 
   // Liveness: the process is up.
   app.get('/health', (req, res) => {
