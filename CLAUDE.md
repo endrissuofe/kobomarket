@@ -14,7 +14,7 @@ Node.js 22 (CommonJS) · Express · Knex + `pg` on PostgreSQL (Neon) · Mongoose
   - Ubuntu 24.04 (current): Node 22 via nvm. MongoDB 8 runs locally (`mongodb://127.0.0.1:27017/kobomarket`). Use `127.0.0.1`, not `localhost`: the machine's IPv6 is broken and `localhost` can resolve to `::1`. Docker Engine can run here if installed.
   - 2015 MacBook Pro, macOS 12: no Docker. Use cloud MongoDB (Atlas).
 - Stay on Node 22 (`.nvmrc`) on every machine.
-- Postgres is Neon. `neon env pull --project-id curly-resonance-15703720 --branch production` writes `.env.local` with `DATABASE_URL` (pooled, app traffic) and `DATABASE_URL_UNPOOLED` (direct, migrations).
+- Postgres is Neon. After `npm ci` (`neon.ts` imports `@neon/config`), `neon env pull --project-id curly-resonance-15703720 --branch production --file .env.local` writes `.env.local` with `DATABASE_URL` (pooled, app traffic) and `DATABASE_URL_UNPOOLED` (direct, migrations). Always pass `--file .env.local`: neon CLI 9.x writes to `.env` by default and overwrites its `DATABASE_URL`.
 - `src/config/loadEnv.js` loads `.env.local` first, then `.env`. Never commit either.
 - Docker is always verified in GitHub Actions (`docker-smoke` job runs `docker compose up`, checks `/health/ready`, runs Postgres integration tests). Check the Actions tab after every push.
 
