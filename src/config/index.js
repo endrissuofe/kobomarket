@@ -30,7 +30,19 @@ const schema = z.object({
   PAYOUT_MIN_KOBO: z.coerce.number().int().positive().default(100000),
 });
 
-const parsed = schema.safeParse(process.env);
+const MOCK_PAYSTACK_SECRET = 'sk_test_kobomarket_mock_provider';
+
+const withRules = schema.superRefine((env, ctx) => {
+  if (env.PAYMENT_PROVIDER === 'paystack' && !env.PAYSTACK_SECRET_KEY) {
+    ctx.addIssue({
+      code: 'custom',
+      path: ['PAYSTACK_SECRET_KEY'],
+      message: 'Required when PAYMENT_PROVIDER=paystack (use a test-mode sk_test_ key)',
+    });
+  }
+});
+
+const parsed = withRules.safeParse(process.env);
 if (!parsed.success) {
   console.error('Invalid environment configuration:', parsed.error.flatten().fieldErrors);
   process.exit(1);
@@ -56,7 +68,10 @@ module.exports = {
   },
   payments: {
     provider: env.PAYMENT_PROVIDER,
-    paystackSecret: env.PAYSTACK_SECRET_KEY,
+    // The mock provider signs its webhooks too; without a key it uses a fixed
+    // test secret so signature checks still run in development and tests.
+    paystackSecret:
+      env.PAYSTACK_SECRET_KEY || (env.PAYMENT_PROVIDER === 'mock' ? MOCK_PAYSTACK_SECRET : ''),
     paystackBaseUrl: env.PAYSTACK_BASE_URL,
     callbackUrl: env.PAYSTACK_CALLBACK_URL,
   },
