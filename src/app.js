@@ -8,6 +8,7 @@ const { logger } = require('./shared/logger');
 const requestId = require('./shared/middleware/requestId');
 const { notFoundHandler, errorHandler } = require('./shared/middleware/errorHandler');
 const postgres = require('./db/postgres');
+const mongo = require('./db/mongo');
 
 function createApp() {
   const app = express();
@@ -30,14 +31,19 @@ function createApp() {
 
   // Readiness: the process can reach its databases.
   app.get('/health/ready', async (req, res) => {
+    const probes = { postgres: postgres.ping, mongo: mongo.ping };
     const checks = {};
-    try {
-      await postgres.ping();
-      checks.postgres = 'ok';
-    } catch (err) {
-      req.log.error({ err }, 'Postgres readiness check failed');
-      checks.postgres = 'unreachable';
-    }
+    await Promise.all(
+      Object.entries(probes).map(async ([name, probe]) => {
+        try {
+          await probe();
+          checks[name] = 'ok';
+        } catch (err) {
+          req.log.error({ err }, `${name} readiness check failed`);
+          checks[name] = 'unreachable';
+        }
+      }),
+    );
     const ready = Object.values(checks).every((v) => v === 'ok');
     res.status(ready ? 200 : 503).json({
       success: ready,
