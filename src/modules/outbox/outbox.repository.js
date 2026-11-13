@@ -65,6 +65,8 @@ const OUTBOX_EVENTS = Object.freeze({
   FUNDS_RELEASED: 'sub_order.funds_released',
   DISPUTE_OPENED: 'dispute.opened',
   DISPUTE_RESOLVED: 'dispute.resolved',
+  PAYOUT_SUCCEEDED: 'payout.succeeded',
+  PAYOUT_FAILED: 'payout.failed',
 });
 
 module.exports = { outboxRepository, OUTBOX_EVENTS };
