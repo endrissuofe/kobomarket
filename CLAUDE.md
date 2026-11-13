@@ -2,7 +2,11 @@
 
 Individual 4-week final project: a multi-vendor marketplace **backend** with wallets, a double-entry ledger and escrow. No frontend is graded. The assignment brief is the source of truth.
 
-**Start every session by reading `docs/HANDOVER.md`** (design decisions, what is built, money flows, state machine, the ordered plan to finish). The brief is at `docs/brief.md`, kept local and gitignored because the repo is public; if it is missing, ask Drix for it.
+**Start every session by reading `docs/SCOPE.md` and `docs/HANDOVER.md`.**
+
+- `docs/SCOPE.md` is the assignment brief as a committed checklist: every requirement, endpoint, required test, mark and deduction. **Scope rule:** before building anything, name the SCOPE line it delivers. If there is none and it isn't listed under "Deliberate additions" or "Bonus", it is out of scope: stop and ask Drix. Tick SCOPE boxes only when built and proven by a test or a manual check.
+- `docs/HANDOVER.md` holds the design decisions, money flows, state machine and the ordered plan to finish.
+- The original brief text is optional: `docs/brief.md` if Drix has saved it locally (gitignored, because the repo is public). When present, it settles any wording question.
 
 ## Stack
 

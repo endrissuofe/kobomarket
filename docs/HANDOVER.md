@@ -2,7 +2,7 @@
 
 Read this after `CLAUDE.md`. `CLAUDE.md` holds the rules; this file holds the design decisions, what is already built, and the plan to finish. Where the two disagree, `CLAUDE.md` and the brief win.
 
-- **Brief:** `docs/brief.md` (local only, gitignored because this repo is public). If it is missing, ask Drix to save the assignment brief there.
+- **Scope:** `docs/SCOPE.md` — the whole brief as a committed checklist. Check every feature against it. The original brief text may also exist locally as `docs/brief.md` (gitignored); it is optional.
 - **Design doc (human copy):** https://claude.ai/artifact/5ip2hL4U3dCExhzuhjS7FZ. Everything you need from it is copied below.
 - **Repo:** https://github.com/endrissuofe/kobomarket (public). CI: `test` (lint + unit) and `docker-smoke` (compose up, `/health/ready`, integration + concurrency tests, `audit:ledger`).
 
@@ -10,13 +10,13 @@ Read this after `CLAUDE.md`. `CLAUDE.md` holds the rules; this file holds the de
 
 A fresh clone has none of the git-ignored files. Check for each one first; if any is missing, walk Drix through recreating it (he runs commands that need a browser or a secret).
 
-| Missing                  | How to recreate it                                                                                                                                                                                                                                                                          |
-| ------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Node 22                  | `nvm install 22 && nvm use` (repo has `.nvmrc`)                                                                                                                                                                                                                                             |
-| `docs/brief.md`          | Drix saves the assignment brief there (he has a copy outside git)                                                                                                                                                                                                                           |
-| `.env.local` (Neon URLs) | `npm ci` first (`neon.ts` needs `@neon/config`), `npm i -g neon@latest`, `neon login` (browser), then `neon env pull --project-id curly-resonance-15703720 --branch production --file .env.local` (CLI 9.x defaults to `.env` and overwrites its `DATABASE_URL`)                            |
-| `.env`                   | `cp .env.example .env`, set `JWT_ACCESS_SECRET` to `openssl rand -hex 32`, then switch to the "Option B" database lines: `MONGO_URI` for this machine (local MongoDB: `mongodb://127.0.0.1:27017/kobomarket`, otherwise an Atlas URL); keep a placeholder `REDIS_URL` until Redis is needed |
-| `.neon`                  | Not needed day to day; `neon env pull` takes the project and branch as flags. `neon init` recreates it if wanted                                                                                                                                                                            |
+| Missing                    | How to recreate it                                                                                                                                                                                                                                                                          |
+| -------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Node 22                    | `nvm install 22 && nvm use` (repo has `.nvmrc`)                                                                                                                                                                                                                                             |
+| `docs/brief.md` (optional) | Not needed: `docs/SCOPE.md` covers the brief. Drix may save the original there for exact wording                                                                                                                                                                                            |
+| `.env.local` (Neon URLs)   | `npm ci` first (`neon.ts` needs `@neon/config`), `npm i -g neon@latest`, `neon login` (browser), then `neon env pull --project-id curly-resonance-15703720 --branch production --file .env.local` (CLI 9.x defaults to `.env` and overwrites its `DATABASE_URL`)                            |
+| `.env`                     | `cp .env.example .env`, set `JWT_ACCESS_SECRET` to `openssl rand -hex 32`, then switch to the "Option B" database lines: `MONGO_URI` for this machine (local MongoDB: `mongodb://127.0.0.1:27017/kobomarket`, otherwise an Atlas URL); keep a placeholder `REDIS_URL` until Redis is needed |
+| `.neon`                    | Not needed day to day; `neon env pull` takes the project and branch as flags. `neon init` recreates it if wanted                                                                                                                                                                            |
 
 Then prove the setup before writing code: `npm ci`, `npm run lint`, `npm run migrate` (expect "Already up to date"), `npm test`, `npm run audit:ledger` (expect PASS).
 
