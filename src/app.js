@@ -54,6 +54,7 @@ function createApp() {
   // Module routers, all under /api/v1.
   app.use('/api/v1/auth', require('./modules/auth/auth.routes'));
   app.use('/api/v1/users', require('./modules/users/users.routes'));
+  app.use('/api/v1/vendors', require('./modules/vendors/vendors.routes'));
 
   app.use(notFoundHandler);
   app.use(errorHandler);
