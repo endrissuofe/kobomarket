@@ -60,3 +60,11 @@ Points the brief leaves open, and what KoboMarket does about them.
 - **A rejected vendor may apply again**, which puts the same application back to PENDING. Only approved stores are visible publicly.
 - **Product stock is set absolutely by the vendor** (`PATCH /products/:id`). If a checkout decrements stock between the vendor reading and saving, the vendor's number wins. A delta endpoint using `$inc` would close this; listed under known limitations.
 - **No relevance ordering for product search.** Search narrows results and the chosen sort orders them, because a text-relevance score cannot be used as a pagination cursor.
+- **Checkout reserves stock first, then takes money.** The brief's order is money first, then stock with a refund if stock fails. Reserving first (one conditional `$inc` per line, all or nothing) means a sold-out item never touches the wallet, and if the Postgres transaction fails the stock is simply put back; a put-back that itself fails is saved as a `compensations` document for the reconciler.
+- **Inside the checkout transaction the escrow hold is posted before the order rows.** That takes the wallet row lock first; inserting the order first took a foreign-key share lock on the wallet and parallel checkouts deadlocked upgrading it (found by the 10-concurrent-checkouts test).
+- **A changed price stops checkout.** The cart is updated to the live price and the buyer checks out again, so nobody pays a price they have not seen.
+- **Cancelling is all or nothing.** An order can be cancelled only while every sub-order is still PAID; if any vendor has shipped, the cancel is refused.
+- **The commission rate is snapshotted per sub-order at checkout**, so an admin changing the rate later does not change what was agreed.
+- **Order status is derived** from the sub-orders (their shared status, or `IN_PROGRESS`), never stored, so the two cannot disagree.
+- **Shipping requires a courier name and tracking number.**
+- **Vendors list their own sub-orders** at `GET /vendors/me/sub-orders` (not in the brief's endpoint list, but vendors must be able to "view orders").

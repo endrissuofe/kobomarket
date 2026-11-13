@@ -1,0 +1,123 @@
+# OpenAPI fragment for orders, sub-orders and checkout. Merged into /api-docs
+# in plan step 12. All amounts are integer kobo.
+paths:
+  /api/v1/orders/checkout:
+    post:
+      tags: [Orders]
+      summary: Check out the cart
+      description: >
+        Re-checks every cart line against live products (a changed price, missing
+        stock or removed product stops checkout with 409 CART_NOT_READY; prices in
+        the cart are updated so the buyer can check out again). Then reserves stock,
+        and in one PostgreSQL transaction moves the total from the wallet to escrow
+        and creates one order with one PAID sub-order per vendor. Idempotent: the
+        same Idempotency-Key returns the same order.
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: Idempotency-Key, in: header, required: true, schema: { type: string } }
+      requestBody:
+        content:
+          application/json:
+            schema: { type: object, additionalProperties: false }
+      responses:
+        '201': { description: 'Order with subOrders[] and items[]' }
+        '400': { description: IDEMPOTENCY_KEY_REQUIRED }
+        '403': { description: ACCOUNT_FROZEN or CANNOT_BUY_OWN_PRODUCT }
+        '409':
+          description: >
+            CART_NOT_READY (details.items), OUT_OF_STOCK, VENDOR_UNAVAILABLE,
+            WALLET_NOT_READY, IDEMPOTENCY_KEY_REUSED or REQUEST_IN_PROGRESS
+        '422': { description: CART_EMPTY or INSUFFICIENT_FUNDS (no order, no ledger entries) }
+
+  /api/v1/orders:
+    get:
+      tags: [Orders]
+      summary: Your orders, newest first (cursor pagination)
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: limit, in: query, schema: { type: integer, minimum: 1, maximum: 100 } }
+        - { name: cursor, in: query, schema: { type: string } }
+      responses:
+        '200': { description: '{ items: Order[], nextCursor }' }
+
+  /api/v1/orders/{id}:
+    get:
+      tags: [Orders]
+      summary: One of your orders
+      description: status is derived from the sub-orders (shared status, or IN_PROGRESS).
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        '200': { description: Order }
+        '404': { description: Not found, or not yours }
+
+  /api/v1/orders/{id}/cancel:
+    post:
+      tags: [Orders]
+      summary: Cancel an order before anything ships (refunds escrow, restocks)
+      description: All or nothing; refused if any sub-order is no longer PAID.
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        '200': { description: The cancelled order }
+        '404': { description: Not found, or not yours }
+        '409': { description: ORDER_NOT_CANCELLABLE (details.subOrders shows each status) }
+
+  /api/v1/sub-orders/{id}/ship:
+    patch:
+      tags: [Orders]
+      summary: Mark your sub-order shipped (vendor)
+      description: Starts the escrow timeout (escrow_timeout_hours, default 72) for auto-complete.
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [courierName, trackingNumber]
+              additionalProperties: false
+              properties:
+                courierName: { type: string, example: GIG Logistics }
+                trackingNumber: { type: string, example: GIG-123456 }
+      responses:
+        '200': { description: The shipped sub-order }
+        '404': { description: Not found, or not your store's }
+        '409': { description: INVALID_TRANSITION (e.g. already shipped or cancelled) }
+
+  /api/v1/sub-orders/{id}/confirm:
+    patch:
+      tags: [Orders]
+      summary: Confirm delivery (buyer); releases escrow to the vendor
+      description: >
+        SHIPPED to DELIVERED to COMPLETED in one transaction. Escrow is split: the
+        vendor gets the subtotal minus commission (rate snapshotted at checkout,
+        rounded down), PLATFORM_REVENUE gets the commission.
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        '200': { description: The completed sub-order }
+        '404': { description: Not found, or not your order }
+        '409': { description: INVALID_TRANSITION (e.g. not shipped yet) }
+
+  /api/v1/vendors/me/sub-orders:
+    get:
+      tags: [Orders]
+      summary: Your store's sub-orders, newest first (vendor)
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum:
+              [PENDING_PAYMENT, PAID, SHIPPED, DELIVERED, COMPLETED, CANCELLED, DISPUTED, REFUNDED]
+        - { name: limit, in: query, schema: { type: integer } }
+        - { name: cursor, in: query, schema: { type: string } }
+      responses:
+        '200': { description: '{ items: SubOrder[] (with items), nextCursor }' }
