@@ -55,7 +55,7 @@ Every requirement in the assignment brief, restated in our own words as a checkl
 ## 5. Module C — Cart (MongoDB)
 
 - [x] Add, update and remove items; one cart may hold items from many vendors. ✓ `cart.test.js`
-- [ ] At checkout, stock and current price are re-validated (cart prices may be stale).
+- [x] At checkout, stock and current price are re-validated (cart prices may be stale). ✓ `checkout.test.js` (stale price)
 
 ## 6. Module D — Wallets and ledger (PostgreSQL)
 
@@ -78,17 +78,17 @@ Every requirement in the assignment brief, restated in our own words as a checkl
 
 ## 8. Module F — Orders and escrow (PostgreSQL)
 
-- [ ] Checkout takes an `Idempotency-Key` header; the same key never creates two orders.
-- [ ] Checkout validates stock and prices against MongoDB.
-- [ ] In one PostgreSQL transaction: lock the buyer's wallet row (`SELECT ... FOR UPDATE`), check the balance, create the order and items, move money buyer wallet → `PLATFORM_ESCROW`.
-- [ ] A cart with items from N vendors becomes 1 parent order with N sub-orders.
-- [ ] Stock is decremented in MongoDB; if that fails, compensate (refund escrow, cancel order). See section 12 for our reserve-first ordering.
-- [ ] Only valid state transitions: PENDING_PAYMENT → PAID → SHIPPED → DELIVERED → COMPLETED; PAID → CANCELLED; SHIPPED → DISPUTED; DELIVERED → DISPUTED. Anything else (e.g. PENDING_PAYMENT → COMPLETED, PAID → COMPLETED) is rejected.
-- [ ] Vendor marks a sub-order SHIPPED.
-- [ ] Buyer confirms DELIVERED.
-- [ ] On completion: escrow → vendor wallet (amount minus commission) and escrow → `PLATFORM_REVENUE` (commission, default 5%, admin-configurable).
+- [x] Checkout takes an `Idempotency-Key` header; the same key never creates two orders. ✓ required test 9; `checkout.test.js`
+- [x] Checkout validates stock and prices against MongoDB. ✓ `checkout.test.js`
+- [x] In one PostgreSQL transaction: lock the buyer's wallet row (`SELECT ... FOR UPDATE`), check the balance, create the order and items, move money buyer wallet → `PLATFORM_ESCROW`. ✓ required tests 6, 7; `checkout.test.js`, `checkout.concurrency.test.js`
+- [x] A cart with items from N vendors becomes 1 parent order with N sub-orders. ✓ `checkout.test.js`
+- [x] Stock is decremented in MongoDB; if that fails, compensate (refund escrow, cancel order). See section 12 for our reserve-first ordering. ✓ reserve-first with release; `checkout.test.js`, `stock.test.js`
+- [x] Only valid state transitions: PENDING_PAYMENT → PAID → SHIPPED → DELIVERED → COMPLETED; PAID → CANCELLED; SHIPPED → DISPUTED; DELIVERED → DISPUTED. Anything else (e.g. PENDING_PAYMENT → COMPLETED, PAID → COMPLETED) is rejected. ✓ required test 10; `state-machine.test.js`, `orders.fulfil.test.js`
+- [x] Vendor marks a sub-order SHIPPED. ✓ `orders.fulfil.test.js`
+- [x] Buyer confirms DELIVERED. ✓ `orders.fulfil.test.js`
+- [x] On completion: escrow → vendor wallet (amount minus commission) and escrow → `PLATFORM_REVENUE` (commission, default 5%, admin-configurable). ✓ required test 11; `orders.fulfil.test.js`
 - [ ] Auto-complete: 72 hours after SHIPPED with no buyer action, the sub-order completes and funds release, run by a scheduled job (node-cron or BullMQ).
-- [ ] Buyer can cancel only before SHIPPED; cancelling refunds escrow to the buyer.
+- [x] Buyer can cancel only before SHIPPED; cancelling refunds escrow to the buyer. ✓ all or nothing; `orders.cancel.test.js`
 
 ## 9. Module G — Disputes and refunds (PostgreSQL)
 
@@ -141,8 +141,8 @@ Every requirement in the assignment brief, restated in our own words as a checkl
 ## 14. The hard parts
 
 - [ ] **Cross-database consistency** handled for (a) user created but wallet creation fails and (b) escrow taken but stock decrement fails, using compensating actions or the outbox pattern. README explains the choice and why.
-- [ ] **Concurrency:** two simultaneous checkouts by one buyer cannot overspend; two buyers cannot both get the last item. Use row locks, conditional atomic updates in MongoDB, or optimistic locking.
-- [ ] **Idempotency:** `POST /orders/checkout`, `POST /wallet/fund` and `POST /payouts` accept `Idempotency-Key`. Same key + same body returns the original response without repeating the action; same key + different body returns 409. — _PARTIAL: middleware done and used by `POST /wallet/fund` (`idempotency.test.js`); checkout and payouts still to wire_
+- [x] **Concurrency:** two simultaneous checkouts by one buyer cannot overspend; two buyers cannot both get the last item. Use row locks, conditional atomic updates in MongoDB, or optimistic locking. ✓ required tests 7, 8; `checkout.concurrency.test.js`, `checkout.test.js`
+- [ ] **Idempotency:** `POST /orders/checkout`, `POST /wallet/fund` and `POST /payouts` accept `Idempotency-Key`. Same key + same body returns the original response without repeating the action; same key + different body returns 409. — _PARTIAL: middleware done and used by `POST /wallet/fund` (`idempotency.test.js`); checkout wired (required test 9); payouts still to wire_
 - [x] **Money correctness:** at all times, all user wallets + escrow + revenue + payout clearing = total ever funded − total ever paid out. `npm run audit:ledger` checks it and prints PASS or FAIL. ✓ runs in CI after the suite
 
 ## 15. Endpoints (minimum; all under `/api/v1`; none may be removed)
@@ -167,12 +167,12 @@ Every requirement in the assignment brief, restated in our own words as a checkl
 - [x] 3. A buyer cannot reach vendor or admin routes. ✓ `rbac.test.js`
 - [x] 4. The same Paystack webhook sent twice credits the wallet once. ✓ `wallet.webhook.test.js`
 - [x] 5. A webhook with a bad signature is rejected. ✓ `wallet.webhook.test.js`
-- [ ] 6. Checkout with too little balance fails and creates no order and no ledger entries.
-- [ ] 7. 10 concurrent checkouts against a wallet that can afford 3 → exactly 3 succeed.
-- [ ] 8. 2 buyers racing for the last item → exactly 1 succeeds.
-- [ ] 9. The same Idempotency-Key on checkout twice → one order.
-- [ ] 10. An invalid transition (e.g. PAID → COMPLETED) is rejected.
-- [ ] 11. Completing an order splits money correctly between vendor and platform revenue.
+- [x] 6. Checkout with too little balance fails and creates no order and no ledger entries. ✓ `checkout.test.js`
+- [x] 7. 10 concurrent checkouts against a wallet that can afford 3 → exactly 3 succeed. ✓ `checkout.concurrency.test.js`
+- [x] 8. 2 buyers racing for the last item → exactly 1 succeeds. ✓ `checkout.test.js`
+- [x] 9. The same Idempotency-Key on checkout twice → one order. ✓ `checkout.test.js`
+- [x] 10. An invalid transition (e.g. PAID → COMPLETED) is rejected. ✓ `state-machine.test.js`, `orders.fulfil.test.js`
+- [x] 11. Completing an order splits money correctly between vendor and platform revenue. ✓ `orders.fulfil.test.js`
 - [ ] 12. The auto-complete job skips a disputed sub-order.
 - [ ] 13. A partial refund leaves the ledger balanced.
 - [ ] 14. A failed payout returns the money to the vendor's wallet.
