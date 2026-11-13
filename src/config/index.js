@@ -25,6 +25,15 @@ const schema = z.object({
   PAYSTACK_BASE_URL: z.string().url().default('https://api.paystack.co'),
   PAYSTACK_CALLBACK_URL: z.string().default(''),
 
+  // General API rate limit per IP. 0 turns it off; tests default to off
+  // because one test file sends hundreds of requests from one address.
+  RATE_LIMIT_WINDOW_MS: z.coerce.number().int().positive().default(60_000),
+  RATE_LIMIT_MAX: z.coerce
+    .number()
+    .int()
+    .min(0)
+    .default(process.env.NODE_ENV === 'test' ? 0 : 300),
+
   DEFAULT_COMMISSION_BPS: z.coerce.number().int().min(0).max(10000).default(500),
   ESCROW_TIMEOUT_HOURS: z.coerce.number().int().positive().default(72),
   PAYOUT_MIN_KOBO: z.coerce.number().int().positive().default(100000),
@@ -75,6 +84,7 @@ module.exports = {
     paystackBaseUrl: env.PAYSTACK_BASE_URL,
     callbackUrl: env.PAYSTACK_CALLBACK_URL,
   },
+  rateLimit: { windowMs: env.RATE_LIMIT_WINDOW_MS, max: env.RATE_LIMIT_MAX },
   // Defaults only. Live values come from the settings table (admin-editable).
   business: {
     commissionBps: env.DEFAULT_COMMISSION_BPS,
