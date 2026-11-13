@@ -1,0 +1,99 @@
+# OpenAPI fragment for vendors. Merged into /api-docs in plan step 12.
+paths:
+  /api/v1/vendors/apply:
+    post:
+      tags: [Vendors]
+      summary: Apply to become a vendor (one store per user)
+      description: >
+        Creates a PENDING application. After a rejection the same user may apply
+        again, which puts the application back to PENDING. Frozen users are refused.
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [storeName, bank]
+              properties:
+                storeName: { type: string, minLength: 2, maxLength: 80 }
+                description: { type: string, maxLength: 2000 }
+                bank:
+                  type: object
+                  required: [bankCode, accountNumber, accountName]
+                  properties:
+                    bankCode: { type: string, pattern: '^\d{3,6}$', example: '058' }
+                    accountNumber: { type: string, pattern: '^\d{10}$' }
+                    accountName: { type: string }
+      responses:
+        '201': { description: Application created (bank account number masked) }
+        '403': { description: ACCOUNT_FROZEN }
+        '409': { description: ALREADY_APPLIED }
+        '422': { description: VALIDATION_ERROR }
+
+  /api/v1/vendors/me:
+    get:
+      tags: [Vendors]
+      summary: The caller's own application, with status and masked bank details
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200': { description: Application }
+        '404': { description: Never applied }
+
+  /api/v1/vendors/{id}:
+    get:
+      tags: [Vendors]
+      summary: Public store profile (approved stores only, no bank details)
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      responses:
+        '200': { description: Store }
+        '404': { description: Unknown or not approved }
+
+  /api/v1/admin/vendors:
+    get:
+      tags: [Admin]
+      summary: List applications, oldest first (cursor pagination)
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: status, in: query, schema: { type: string, enum: [PENDING, APPROVED, REJECTED] } }
+        - {
+            name: limit,
+            in: query,
+            schema: { type: integer, minimum: 1, maximum: 100, default: 20 },
+          }
+        - { name: cursor, in: query, schema: { type: string } }
+      responses:
+        '200': { description: '{ items, nextCursor }' }
+        '403': { description: Not an admin }
+
+  /api/v1/admin/vendors/{id}/approve:
+    patch:
+      tags: [Admin]
+      summary: Approve a pending application and grant the vendor role (safe to repeat)
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      responses:
+        '200': { description: Approved }
+        '404': { description: Unknown vendor }
+        '409': { description: INVALID_VENDOR_STATUS (e.g. already rejected) }
+
+  /api/v1/admin/vendors/{id}/reject:
+    patch:
+      tags: [Admin]
+      summary: Reject a pending application with a reason
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [reason]
+              properties: { reason: { type: string, minLength: 5, maxLength: 500 } }
+      responses:
+        '200': { description: Rejected }
+        '409': { description: INVALID_VENDOR_STATUS }
