@@ -3,7 +3,8 @@ const { randomUUID } = require('node:crypto');
 const { db, withTransaction } = require('../../db/postgres');
 const config = require('../../config');
 const { logger } = require('../../shared/logger');
-const { conflict } = require('../../shared/errors');
+const { badRequest, conflict } = require('../../shared/errors');
+const { decodeCursor, paginate } = require('../../shared/http/cursor');
 const { paymentProvider } = require('../../integrations/payments');
 const { LedgerService, SYSTEM_ACCOUNTS, TRANSACTION_TYPES } = require('../ledger');
 const { WALLET_STATUS } = require('../users/user.model');
@@ -111,4 +112,30 @@ async function creditFunding(reference) {
   });
 }
 
-module.exports = { walletService: { fund, creditFunding }, walletOf };
+/** Balance comes from the cached balance_kobo, which audit:ledger proves equals SUM(entries). */
+async function getWallet(user) {
+  const account = await walletOf(user);
+  return {
+    accountId: account.id,
+    currency: account.currency,
+    balanceKobo: account.balanceKobo,
+    status: account.status,
+  };
+}
+
+/** The wallet's ledger entries, newest first, cursor-paginated. */
+async function listTransactions(user, { limit, cursor }) {
+  const account = await walletOf(user);
+  const after = decodeCursor(cursor);
+  if (after && !Number.isSafeInteger(after.id)) throw badRequest('Invalid cursor');
+  const rows = await LedgerService.listEntries(account.id, {
+    beforeId: after?.id,
+    limit: limit + 1,
+  });
+  return paginate(rows, limit, (entry) => ({ id: entry.id }));
+}
+
+module.exports = {
+  walletService: { fund, creditFunding, getWallet, listTransactions },
+  walletOf,
+};

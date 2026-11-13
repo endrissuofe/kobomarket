@@ -1,4 +1,5 @@
 const { z } = require('zod');
+const { pageQuery } = require('../../shared/http/schemas');
 const { MIN_FUNDING_KOBO, MAX_FUNDING_KOBO } = require('./wallet.constants');
 
 // A JSON integer in kobo. Strings and decimals are refused, never coerced.
@@ -12,4 +13,6 @@ const fundBody = z
   })
   .strict();
 
-module.exports = { fundBody };
+const transactionsQuery = pageQuery;
+
+module.exports = { fundBody, transactionsQuery };
