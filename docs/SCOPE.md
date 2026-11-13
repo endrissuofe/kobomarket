@@ -36,7 +36,7 @@ Every requirement in the assignment brief, restated in our own words as a checkl
 - [x] Logout invalidates the refresh token. ✓ `auth.sessions.test.js`
 - [x] Forgot password and reset password flow. ✓ `auth.password.test.js`
 - [x] Login rate limit: at most 5 failed attempts per 15 minutes per email + IP. ✓ `auth.login.test.js`
-- [ ] Creating a user in MongoDB creates their wallet in PostgreSQL, with failure handled (section 9). — _PARTIAL: wallet opened at register, left PENDING on failure (`auth.register.test.js`); the reconciler job that retries PENDING wallets comes with Redis/BullMQ_
+- [x] Creating a user in MongoDB creates their wallet in PostgreSQL, with failure handled (section 9). ✓ PENDING on failure (`auth.register.test.js`), retried by the wallet reconciler job (`tests/jobs/maintenance.test.js`)
 
 ## 4. Module B — Vendors and products (MongoDB)
 
@@ -87,7 +87,7 @@ Every requirement in the assignment brief, restated in our own words as a checkl
 - [x] Vendor marks a sub-order SHIPPED. ✓ `orders.fulfil.test.js`
 - [x] Buyer confirms DELIVERED. ✓ `orders.fulfil.test.js`
 - [x] On completion: escrow → vendor wallet (amount minus commission) and escrow → `PLATFORM_REVENUE` (commission, default 5%, admin-configurable). ✓ required test 11; `orders.fulfil.test.js`
-- [ ] Auto-complete: 72 hours after SHIPPED with no buyer action, the sub-order completes and funds release, run by a scheduled job (node-cron or BullMQ).
+- [x] Auto-complete: 72 hours after SHIPPED with no buyer action, the sub-order completes and funds release, run by a scheduled job (node-cron or BullMQ). ✓ BullMQ job scheduler; required test 12; `tests/jobs/auto-complete.test.js`
 - [x] Buyer can cancel only before SHIPPED; cancelling refunds escrow to the buyer. ✓ all or nothing; `orders.cancel.test.js`
 
 ## 9. Module G — Disputes and refunds (PostgreSQL)
@@ -173,7 +173,7 @@ Every requirement in the assignment brief, restated in our own words as a checkl
 - [x] 9. The same Idempotency-Key on checkout twice → one order. ✓ `checkout.test.js`
 - [x] 10. An invalid transition (e.g. PAID → COMPLETED) is rejected. ✓ `state-machine.test.js`, `orders.fulfil.test.js`
 - [x] 11. Completing an order splits money correctly between vendor and platform revenue. ✓ `orders.fulfil.test.js`
-- [ ] 12. The auto-complete job skips a disputed sub-order.
+- [x] 12. The auto-complete job skips a disputed sub-order. ✓ `tests/jobs/auto-complete.test.js`
 - [ ] 13. A partial refund leaves the ledger balanced.
 - [ ] 14. A failed payout returns the money to the vendor's wallet.
 - [ ] 15. `npm run audit:ledger` passes after the full test suite.
@@ -220,7 +220,7 @@ Every requirement in the assignment brief, restated in our own words as a checkl
 
 ## 20. Bonus (up to +10; only after every required item and test passes)
 
-- [ ] Redis + BullMQ for all background jobs, with retries and a dead-letter queue
+- [x] Redis + BullMQ for all background jobs, with retries and a dead-letter queue ✓ `src/worker.js`: retries with backoff, failed set kept as dead-letter; outbox rows DEAD after 10; CI proves the relay through Redis
 - [ ] Real-time notifications with Socket.io
 - [ ] Multi-currency wallets (NGN + USD) with stored exchange rates — **planned skip** (risk to the ledger)
 - [ ] Coupons that correctly affect commission — **planned skip**
