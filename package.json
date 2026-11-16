@@ -16,7 +16,7 @@
     "migrate": "knex migrate:latest",
     "migrate:rollback": "knex migrate:rollback",
     "migrate:make": "knex migrate:make",
-    "seed": "knex seed:run",
+    "seed": "node scripts/seed.js",
     "audit:ledger": "node scripts/audit-ledger.js",
     "lint": "eslint .",
     "format": "prettier --write .",

@@ -1,6 +1,6 @@
 require('./src/config/loadEnv');
 
-// The knex CLI (migrate, seed) runs schema changes, so it uses the direct
+// The knex CLI (migrations) runs schema changes, so it uses the direct
 // connection. On Neon the pooled URL goes through PgBouncer in transaction
 // mode, which can break migrations. Falls back to DATABASE_URL locally/Docker.
 
@@ -20,7 +20,6 @@ const base = {
   connection,
   pool: { min: 0, max: 5 },
   migrations: { directory: './migrations', tableName: 'knex_migrations' },
-  seeds: { directory: './seeds' },
 };
 
 module.exports = {

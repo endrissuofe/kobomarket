@@ -57,6 +57,11 @@ jobs:
           done
           docker compose logs worker
           exit 1
+      # README quick start: the seed must work in the stack and be safe to re-run.
+      - name: Seed demo data twice (README quick start)
+        run: |
+          docker compose exec -T api npm run seed
+          docker compose exec -T api npm run seed
       - name: Ledger audit (money is conserved after the tests)
         run: docker compose exec -T api npm run audit:ledger
       - if: failure()

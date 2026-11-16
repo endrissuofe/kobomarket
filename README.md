@@ -12,6 +12,16 @@ docker compose up -d
 docker compose exec api npm run seed
 ```
 
+`npm run seed` adds demo data and is safe to run again (nothing is created or credited twice):
+
+| Role   | Email                                                                  | Notes                                                  |
+| ------ | ---------------------------------------------------------------------- | ------------------------------------------------------ |
+| Admin  | `admin@kobomarket.test`                                                |                                                        |
+| Vendor | `ada@kobomarket.test`, `tunde@kobomarket.test`, `musa@kobomarket.test` | Approved stores with 20 products between them          |
+| Buyer  | `chioma@`, `emeka@`, `fatima@`, `kunle@`, `ngozi@kobomarket.test`      | Wallets funded through the ledger (₦50,000–₦1,000,000) |
+
+Every demo account's password is `KoboMarket#2026`. Demo data only: it refuses to run with `NODE_ENV=production`.
+
 - API: http://localhost:3000
 - Health: http://localhost:3000/health
 - API docs: http://localhost:3000/api-docs (coming in Week 4)
@@ -24,6 +34,7 @@ Requires **Node.js 22** (newer major versions need a newer macOS).
 cp .env.example .env   # then switch to Option B in the Databases section
 npm install
 npm run migrate
+npm run seed           # demo data (optional)
 npm run dev            # API
 npm run dev:worker     # background jobs, in a second terminal
 ```
@@ -39,7 +50,7 @@ src/
   integrations/payments/         Paystack + mock provider behind one interface
   modules/<feature>/             routes → controller → service → repository
   jobs/                          outbox relay, auto-complete, payouts, reconciler
-migrations/   seeds/   scripts/   tests/   docs/
+migrations/   seeds/ (demo data)   scripts/ (seed, audit, make-admin)   tests/   docs/
 ```
 
 ## Why two databases
