@@ -6,7 +6,7 @@ const { validationError } = require('../errors');
  *   router.post('/x', validate({ body: schema }), handler)
  */
 module.exports = function validate(schemas) {
-  return (req, res, next) => {
+  function validateRequest(req, res, next) {
     for (const part of ['params', 'query', 'body']) {
       if (!schemas[part]) continue;
       const result = schemas[part].safeParse(req[part] ?? {});
@@ -21,5 +21,8 @@ module.exports = function validate(schemas) {
       Object.defineProperty(req, part, { value: result.data, writable: true, enumerable: true });
     }
     return next();
-  };
+  }
+  // Which parts this route validates; the route-coverage test reads it.
+  validateRequest.parts = ['params', 'query', 'body'].filter((part) => schemas[part]);
+  return validateRequest;
 };

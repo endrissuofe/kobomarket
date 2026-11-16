@@ -164,6 +164,19 @@ describe('Paystack webhook: signatures', () => {
     expect(await balanceOf(user)).toBe(0);
   });
 
+  test('a correctly signed event without the expected shape is refused and not stored', async () => {
+    const { paystackSecret } = require('../../src/config').payments;
+    const body = JSON.stringify({ event: 'charge.success', data: { amount: 5000 } });
+    const res = await sendWebhook(app, { body, signature: sign(body, paystackSecret) });
+    expect(res.status).toBe(422);
+    expect(res.body.error.code).toBe('VALIDATION_ERROR');
+    const logged = await postgres
+      .db('webhook_events')
+      .whereRaw("payload->'data'->>'amount' = '5000'")
+      .whereRaw("payload->'data'->>'reference' IS NULL");
+    expect(logged).toHaveLength(0);
+  });
+
   test('a body changed after signing is rejected', async () => {
     const user = await signIn(app);
     const funding = await startFunding(app, user, 250000);
