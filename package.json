@@ -23,7 +23,8 @@
     "test": "jest --runInBand",
     "test:unit": "jest tests/unit",
     "test:integration": "jest --runInBand tests/integration tests/concurrency tests/jobs",
-    "make-admin": "node scripts/make-admin.js"
+    "make-admin": "node scripts/make-admin.js",
+    "docs:generate": "node scripts/generate-docs.js"
   },
   "dependencies": {
     "@neon/config": "^1.11.3",
