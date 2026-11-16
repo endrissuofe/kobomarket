@@ -69,7 +69,9 @@ describe('opening a dispute', () => {
       .update({ auto_complete_at: postgres.db.raw("now() - interval '1 hour'") });
     await runAutoComplete();
     expect(await statusOf(sub.id)).toBe('DISPUTED');
-  });
+    // runAutoComplete processes every overdue sub-order in the shared test
+    // database, not just this one, so give it room on a remote database.
+  }, 120_000);
 
   test('a second dispute on the same sub-order is refused', async () => {
     const { buyer, sub } = await shippedSubOrder(app);
