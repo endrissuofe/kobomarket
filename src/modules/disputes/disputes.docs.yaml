@@ -1,4 +1,4 @@
-# OpenAPI fragment for disputes. Merged into /api-docs in plan step 12.
+# OpenAPI fragment for disputes. Merged into /api-docs by src/docs/openapi.js.
 components:
   schemas:
     Evidence:
@@ -9,7 +9,7 @@ components:
         required: [type, value]
         properties:
           type: { type: string, enum: [text, image] }
-          value: { type: string, description: Text, or an image URL }
+          value: { type: string, description: 'Text, or an image URL' }
 paths:
   /api/v1/sub-orders/{id}/disputes:
     post:
@@ -34,10 +34,12 @@ paths:
                 reason: { type: string, minLength: 10, maxLength: 2000 }
                 evidence: { $ref: '#/components/schemas/Evidence' }
       responses:
-        '201': { description: The open dispute }
-        '404': { description: Not found, or not your order }
+        '201': { description: 'The open dispute' }
+        '404': { description: 'Not found, or not your order' }
         '409':
-          { description: DISPUTE_ALREADY_OPEN or NOT_DISPUTABLE (not shipped, or already finished) }
+          {
+            description: 'DISPUTE_ALREADY_OPEN or NOT_DISPUTABLE (not shipped, or already finished)',
+          }
 
   /api/v1/disputes/{id}/respond:
     patch:
@@ -58,9 +60,9 @@ paths:
                 response: { type: string, minLength: 10, maxLength: 2000 }
                 evidence: { $ref: '#/components/schemas/Evidence' }
       responses:
-        '200': { description: The dispute with your reply }
-        '404': { description: Not found, or not your store's }
-        '409': { description: ALREADY_RESPONDED or DISPUTE_ALREADY_RESOLVED }
+        '200': { description: 'The dispute with your reply' }
+        '404': { description: "Not found, or not your store's" }
+        '409': { description: 'ALREADY_RESPONDED or DISPUTE_ALREADY_RESOLVED' }
 
   /api/v1/disputes/mine:
     get:
@@ -85,7 +87,7 @@ paths:
         - { name: cursor, in: query, schema: { type: string } }
       responses:
         '200': { description: '{ items, nextCursor }' }
-        '403': { description: Not an admin }
+        '403': { description: 'Not an admin' }
 
   /api/v1/disputes/{id}:
     get:
@@ -95,8 +97,8 @@ paths:
       parameters:
         - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
       responses:
-        '200': { description: Dispute }
-        '404': { description: Not found }
+        '200': { description: 'Dispute' }
+        '404': { description: 'Not found' }
 
   /api/v1/disputes/{id}/resolve:
     patch:
@@ -126,7 +128,7 @@ paths:
                   description: Only for PARTIAL_REFUND; less than the sub-order total
                 note: { type: string, minLength: 5, maxLength: 2000 }
       responses:
-        '200': { description: The resolved dispute }
-        '404': { description: Not found }
-        '409': { description: DISPUTE_ALREADY_RESOLVED }
-        '422': { description: VALIDATION_ERROR (missing note, refundKobo rules) }
+        '200': { description: 'The resolved dispute' }
+        '404': { description: 'Not found' }
+        '409': { description: 'DISPUTE_ALREADY_RESOLVED' }
+        '422': { description: 'VALIDATION_ERROR (missing note, refundKobo rules)' }

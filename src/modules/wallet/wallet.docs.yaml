@@ -1,5 +1,5 @@
 # OpenAPI fragment for the wallet, funding and the Paystack webhook.
-# Merged into /api-docs in plan step 12. All amounts are integer kobo.
+# Merged into /api-docs by src/docs/openapi.js. All amounts are integer kobo.
 paths:
   /api/v1/wallet:
     get:
@@ -15,7 +15,7 @@ paths:
                 success: true
                 data:
                   { wallet: { accountId: '…', currency: NGN, balanceKobo: 750000, status: ACTIVE } }
-        '409': { description: WALLET_NOT_READY (wallet still being opened) }
+        '409': { description: 'WALLET_NOT_READY (wallet still being opened)' }
 
   /api/v1/wallet/transactions:
     get:
@@ -73,10 +73,10 @@ paths:
                     amountKobo: 500000
                     status: INITIATED
                     authorizationUrl: https://checkout.paystack.com/…
-        '400': { description: IDEMPOTENCY_KEY_REQUIRED }
-        '409': { description: IDEMPOTENCY_KEY_REUSED, REQUEST_IN_PROGRESS or WALLET_NOT_READY }
-        '422': { description: VALIDATION_ERROR (decimal, string, below NGN 100 or above NGN 10m) }
-        '502': { description: PAYMENT_PROVIDER_ERROR }
+        '400': { description: 'IDEMPOTENCY_KEY_REQUIRED' }
+        '409': { description: 'IDEMPOTENCY_KEY_REUSED, REQUEST_IN_PROGRESS or WALLET_NOT_READY' }
+        '422': { description: 'VALIDATION_ERROR (decimal, string, below NGN 100 or above NGN 10m)' }
+        '502': { description: 'PAYMENT_PROVIDER_ERROR' }
 
   /api/v1/webhooks/paystack:
     post:
@@ -94,8 +94,18 @@ paths:
           {
             description: 'Received. data.outcome: credited, duplicate, already_credited, amount_mismatch, ignored, …',
           }
-        '401': { description: INVALID_SIGNATURE (nothing stored or credited) }
-        '502': { description: Re-verification failed; Paystack will retry }
+        '401': { description: 'INVALID_SIGNATURE (nothing stored or credited)' }
+        '502': { description: 'Re-verification failed; Paystack will retry' }
+
+  /mock-paystack/checkout/{reference}:
+    get:
+      tags: [Mock provider]
+      summary: What a mock payment is for (only when PAYMENT_PROVIDER=mock)
+      parameters:
+        - { name: reference, in: path, required: true, schema: { type: string } }
+      responses:
+        '200': { description: '{ reference, email, amountKobo, status }' }
+        '502': { description: 'Unknown reference' }
 
   /mock-paystack/checkout/{reference}/pay:
     post:

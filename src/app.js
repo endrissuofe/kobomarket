@@ -3,6 +3,7 @@ const helmet = require('helmet');
 const cors = require('cors');
 const pinoHttp = require('pino-http');
 const { rateLimit } = require('express-rate-limit');
+const swaggerUi = require('swagger-ui-express');
 
 const config = require('./config');
 const { logger } = require('./shared/logger');
@@ -10,6 +11,7 @@ const requestId = require('./shared/middleware/requestId');
 const { notFoundHandler, errorHandler } = require('./shared/middleware/errorHandler');
 const postgres = require('./db/postgres');
 const mongo = require('./db/mongo');
+const { getSpec } = require('./docs/openapi');
 
 /**
  * @param {{ rateLimit?: { windowMs: number, max: number } }} [options] overrides for tests
@@ -52,6 +54,17 @@ function createApp(options = {}) {
   if (config.payments.provider === 'mock') {
     app.use('/mock-paystack', require('./integrations/payments/mock.routes'));
   }
+
+  // API docs: Swagger UI, and the raw OpenAPI document (import it into Postman).
+  app.get('/api-docs.json', (req, res) => res.json(getSpec()));
+  app.use(
+    '/api-docs',
+    swaggerUi.serve,
+    swaggerUi.setup(getSpec(), {
+      customSiteTitle: 'KoboMarket API',
+      swaggerOptions: { persistAuthorization: true, docExpansion: 'none', tagsSorter: 'alpha' },
+    }),
+  );
 
   // Liveness: the process is up.
   app.get('/health', (req, res) => {

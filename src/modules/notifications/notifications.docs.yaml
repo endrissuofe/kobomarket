@@ -1,4 +1,4 @@
-# OpenAPI fragment for in-app notifications. Merged into /api-docs in plan step 12.
+# OpenAPI fragment for in-app notifications. Merged into /api-docs by src/docs/openapi.js.
 # Notifications are created by the worker from outbox events, never during the
 # request that caused them.
 paths:
@@ -35,8 +35,8 @@ paths:
       parameters:
         - { name: id, in: path, required: true, schema: { type: string } }
       responses:
-        '200': { description: The notification }
-        '404': { description: Not found, or not yours }
+        '200': { description: 'The notification' }
+        '404': { description: 'Not found, or not yours' }
 
   /api/v1/notifications/read-all:
     patch:

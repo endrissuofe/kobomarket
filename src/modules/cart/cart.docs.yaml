@@ -1,4 +1,4 @@
-# OpenAPI fragment for the cart. Merged into /api-docs in plan step 12.
+# OpenAPI fragment for the cart. Merged into /api-docs by src/docs/openapi.js.
 # Cart prices are display only; checkout reads live prices and stock again.
 paths:
   /api/v1/cart:
@@ -52,14 +52,14 @@ paths:
               additionalProperties: false
               properties:
                 productId: { type: string }
-                variantSku: { type: string, description: Required when the product has variants }
+                variantSku: { type: string, description: 'Required when the product has variants' }
                 qty: { type: integer, minimum: 1, maximum: 100, default: 1 }
       responses:
-        '201': { description: The reviewed cart }
-        '403': { description: CANNOT_BUY_OWN_PRODUCT }
-        '404': { description: Product not found or not for sale }
-        '409': { description: INSUFFICIENT_STOCK (details.available) or CART_FULL (50 lines) }
-        '422': { description: VARIANT_REQUIRED, UNKNOWN_VARIANT, QTY_LIMIT or VALIDATION_ERROR }
+        '201': { description: 'The reviewed cart' }
+        '403': { description: 'CANNOT_BUY_OWN_PRODUCT' }
+        '404': { description: 'Product not found or not for sale' }
+        '409': { description: 'INSUFFICIENT_STOCK (details.available) or CART_FULL (50 lines)' }
+        '422': { description: 'VARIANT_REQUIRED, UNKNOWN_VARIANT, QTY_LIMIT or VALIDATION_ERROR' }
 
   /api/v1/cart/items/{itemId}:
     patch:
@@ -77,9 +77,9 @@ paths:
               required: [qty]
               properties: { qty: { type: integer, minimum: 1, maximum: 100 } }
       responses:
-        '200': { description: The reviewed cart }
-        '404': { description: Not in your cart }
-        '409': { description: INSUFFICIENT_STOCK or ITEM_UNAVAILABLE (remove it instead) }
+        '200': { description: 'The reviewed cart' }
+        '404': { description: 'Not in your cart' }
+        '409': { description: 'INSUFFICIENT_STOCK or ITEM_UNAVAILABLE (remove it instead)' }
     delete:
       tags: [Cart]
       summary: Remove a line
@@ -87,5 +87,5 @@ paths:
       parameters:
         - { name: itemId, in: path, required: true, schema: { type: string } }
       responses:
-        '200': { description: The reviewed cart }
-        '404': { description: Not in your cart }
+        '200': { description: 'The reviewed cart' }
+        '404': { description: 'Not in your cart' }

@@ -1,4 +1,4 @@
-# OpenAPI fragment for products. Merged into /api-docs in plan step 12.
+# OpenAPI fragment for products. Merged into /api-docs by src/docs/openapi.js.
 # Prices are integer kobo (NGN 1 = 100 kobo). Catalogue prices only: the
 # amount a buyer pays is snapshotted in PostgreSQL at checkout.
 paths:
@@ -14,8 +14,8 @@ paths:
       parameters:
         - { name: q, in: query, schema: { type: string, maxLength: 100 } }
         - { name: category, in: query, schema: { type: string } }
-        - { name: minPrice, in: query, schema: { type: integer, minimum: 0 }, description: kobo }
-        - { name: maxPrice, in: query, schema: { type: integer, minimum: 0 }, description: kobo }
+        - { name: minPrice, in: query, schema: { type: integer, minimum: 0 }, description: 'kobo' }
+        - { name: maxPrice, in: query, schema: { type: integer, minimum: 0 }, description: 'kobo' }
         - { name: vendorId, in: query, schema: { type: string } }
         - { name: minRating, in: query, schema: { type: number, minimum: 0, maximum: 5 } }
         - name: sort
@@ -29,8 +29,8 @@ paths:
         - { name: cursor, in: query, schema: { type: string } }
       responses:
         '200': { description: '{ items: Product[], nextCursor: string | null }' }
-        '400': { description: Invalid cursor (or a cursor from another sort) }
-        '422': { description: VALIDATION_ERROR (e.g. minPrice=10.5) }
+        '400': { description: 'Invalid cursor (or a cursor from another sort)' }
+        '422': { description: 'VALIDATION_ERROR (e.g. minPrice=10.5)' }
     post:
       tags: [Products]
       summary: Create a product (vendor with an approved store)
@@ -41,9 +41,9 @@ paths:
           application/json:
             schema: { $ref: '#/components/schemas/ProductInput' }
       responses:
-        '201': { description: Created }
-        '403': { description: Not a vendor, or VENDOR_NOT_APPROVED }
-        '422': { description: VALIDATION_ERROR (decimal or string price, duplicate SKU, ...) }
+        '201': { description: 'Created' }
+        '403': { description: 'Not a vendor, or VENDOR_NOT_APPROVED' }
+        '422': { description: 'VALIDATION_ERROR (decimal or string price, duplicate SKU, ...)' }
 
   /api/v1/products/{slug}:
     get:
@@ -52,8 +52,8 @@ paths:
       parameters:
         - { name: slug, in: path, required: true, schema: { type: string } }
       responses:
-        '200': { description: Product }
-        '404': { description: Not found }
+        '200': { description: 'Product' }
+        '404': { description: 'Not found' }
 
   /api/v1/products/{id}:
     patch:
@@ -72,9 +72,9 @@ paths:
           application/json:
             schema: { $ref: '#/components/schemas/ProductInput' }
       responses:
-        '200': { description: Updated }
-        '404': { description: Not found, or owned by another vendor }
-        '422': { description: VALIDATION_ERROR }
+        '200': { description: 'Updated' }
+        '404': { description: 'Not found, or owned by another vendor' }
+        '422': { description: 'VALIDATION_ERROR' }
     delete:
       tags: [Products]
       summary: Soft-delete your own product
@@ -82,8 +82,8 @@ paths:
       parameters:
         - { name: id, in: path, required: true, schema: { type: string } }
       responses:
-        '204': { description: Deleted (hidden everywhere, kept for order history) }
-        '404': { description: Not found, already deleted, or owned by another vendor }
+        '204': { description: 'Deleted (hidden everywhere, kept for order history)' }
+        '404': { description: 'Not found, already deleted, or owned by another vendor' }
 
   /api/v1/products/{id}/reviews:
     post:
@@ -108,10 +108,10 @@ paths:
                 comment: { type: string, maxLength: 2000 }
       responses:
         '201': { description: '{ review, productRating: { avg, count } }' }
-        '403': { description: REVIEW_NOT_ALLOWED (no completed order for this product) }
-        '404': { description: Product not found or deleted }
-        '409': { description: ALREADY_REVIEWED }
-        '422': { description: VALIDATION_ERROR (rating must be a whole number 1-5) }
+        '403': { description: 'REVIEW_NOT_ALLOWED (no completed order for this product)' }
+        '404': { description: 'Product not found or deleted' }
+        '409': { description: 'ALREADY_REVIEWED' }
+        '422': { description: 'VALIDATION_ERROR (rating must be a whole number 1-5)' }
 
   /api/v1/vendors/me/products:
     get:
@@ -142,7 +142,7 @@ components:
           type: integer
           minimum: 1
           description: Required without variants; not allowed with variants
-        stock: { type: integer, minimum: 0, description: Required without variants }
+        stock: { type: integer, minimum: 0, description: 'Required without variants' }
         variants:
           type: array
           maxItems: 50

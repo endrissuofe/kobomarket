@@ -1,5 +1,5 @@
-# OpenAPI fragment for orders, sub-orders and checkout. Merged into /api-docs
-# in plan step 12. All amounts are integer kobo.
+# OpenAPI fragment for orders, sub-orders and checkout, merged into /api-docs
+# by src/docs/openapi.js. All amounts are integer kobo.
 paths:
   /api/v1/orders/checkout:
     post:
@@ -21,13 +21,13 @@ paths:
             schema: { type: object, additionalProperties: false }
       responses:
         '201': { description: 'Order with subOrders[] and items[]' }
-        '400': { description: IDEMPOTENCY_KEY_REQUIRED }
-        '403': { description: ACCOUNT_FROZEN or CANNOT_BUY_OWN_PRODUCT }
+        '400': { description: 'IDEMPOTENCY_KEY_REQUIRED' }
+        '403': { description: 'ACCOUNT_FROZEN or CANNOT_BUY_OWN_PRODUCT' }
         '409':
           description: >
             CART_NOT_READY (details.items), OUT_OF_STOCK, VENDOR_UNAVAILABLE,
             WALLET_NOT_READY, IDEMPOTENCY_KEY_REUSED or REQUEST_IN_PROGRESS
-        '422': { description: CART_EMPTY or INSUFFICIENT_FUNDS (no order, no ledger entries) }
+        '422': { description: 'CART_EMPTY or INSUFFICIENT_FUNDS (no order, no ledger entries)' }
 
   /api/v1/orders:
     get:
@@ -49,8 +49,8 @@ paths:
       parameters:
         - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
       responses:
-        '200': { description: Order }
-        '404': { description: Not found, or not yours }
+        '200': { description: 'Order' }
+        '404': { description: 'Not found, or not yours' }
 
   /api/v1/orders/{id}/cancel:
     post:
@@ -61,9 +61,9 @@ paths:
       parameters:
         - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
       responses:
-        '200': { description: The cancelled order }
-        '404': { description: Not found, or not yours }
-        '409': { description: ORDER_NOT_CANCELLABLE (details.subOrders shows each status) }
+        '200': { description: 'The cancelled order' }
+        '404': { description: 'Not found, or not yours' }
+        '409': { description: 'ORDER_NOT_CANCELLABLE (details.subOrders shows each status)' }
 
   /api/v1/sub-orders/{id}/ship:
     patch:
@@ -85,9 +85,9 @@ paths:
                 courierName: { type: string, example: GIG Logistics }
                 trackingNumber: { type: string, example: GIG-123456 }
       responses:
-        '200': { description: The shipped sub-order }
-        '404': { description: Not found, or not your store's }
-        '409': { description: INVALID_TRANSITION (e.g. already shipped or cancelled) }
+        '200': { description: 'The shipped sub-order' }
+        '404': { description: "Not found, or not your store's" }
+        '409': { description: 'INVALID_TRANSITION (e.g. already shipped or cancelled)' }
 
   /api/v1/sub-orders/{id}/confirm:
     patch:
@@ -101,9 +101,9 @@ paths:
       parameters:
         - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
       responses:
-        '200': { description: The completed sub-order }
-        '404': { description: Not found, or not your order }
-        '409': { description: INVALID_TRANSITION (e.g. not shipped yet) }
+        '200': { description: 'The completed sub-order' }
+        '404': { description: 'Not found, or not your order' }
+        '409': { description: 'INVALID_TRANSITION (e.g. not shipped yet)' }
 
   /api/v1/vendors/me/sub-orders:
     get:

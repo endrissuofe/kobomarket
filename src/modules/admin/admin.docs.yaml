@@ -7,13 +7,10 @@ paths:
       summary: List and search users, newest first
       security: [{ bearerAuth: [] }]
       parameters:
-        - {
-            name: q,
-            in: query,
-            schema: { type: string },
-            description: Start of the email,
-            or part of the name,
-          }
+        - name: q
+          in: query
+          schema: { type: string }
+          description: Start of the email, or part of the name
         - { name: role, in: query, schema: { type: string, enum: [buyer, vendor, admin] } }
         - { name: status, in: query, schema: { type: string, enum: [ACTIVE, FROZEN] } }
         - { name: limit, in: query, schema: { type: integer } }
@@ -41,8 +38,8 @@ paths:
               properties: { reason: { type: string, minLength: 5, maxLength: 500 } }
       responses:
         '200': { description: '{ user, walletStatus }' }
-        '404': { description: User not found }
-        '409': { description: CANNOT_FREEZE_SELF }
+        '404': { description: 'User not found' }
+        '409': { description: 'CANNOT_FREEZE_SELF' }
 
   /api/v1/admin/users/{id}/unfreeze:
     patch:
@@ -74,7 +71,7 @@ paths:
           {
             description: '{ account, items: [{ id, transactionId, type, reference, direction, amountKobo, createdAt }], nextCursor }',
           }
-        '404': { description: Account not found }
+        '404': { description: 'Account not found' }
 
   /api/v1/admin/transactions:
     get:
@@ -130,7 +127,7 @@ paths:
               properties: { commissionBps: { type: integer, minimum: 0, maximum: 5000 } }
       responses:
         '200': { description: '{ settings }' }
-        '422': { description: VALIDATION_ERROR }
+        '422': { description: 'VALIDATION_ERROR' }
 
   /api/v1/admin/reports/revenue:
     get:
@@ -145,7 +142,7 @@ paths:
           {
             description: '{ from, to, timezone, totalKobo, days: [{ day, revenueKobo, entries }] } (every day included)',
           }
-        '422': { description: Bad dates, from after to, or more than 366 days }
+        '422': { description: 'Bad dates, from after to, or more than 366 days' }
 
   /api/v1/admin/reports/top-vendors:
     get:

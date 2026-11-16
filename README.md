@@ -24,7 +24,7 @@ Every demo account's password is `KoboMarket#2026`. Demo data only: it refuses t
 
 - API: http://localhost:3000
 - Health: http://localhost:3000/health
-- API docs: http://localhost:3000/api-docs (coming in Week 4)
+- API docs (Swagger UI): http://localhost:3000/api-docs · raw OpenAPI JSON: http://localhost:3000/api-docs.json
 
 ### Running without Docker
 
