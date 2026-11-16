@@ -70,6 +70,35 @@ const productsRepository = {
     return res.modifiedCount === 1;
   },
 
+  /**
+   * Add one star rating, atomically: a single pipeline update adds to sum and
+   * count and recomputes avg from them, so parallel reviews never lose a vote
+   * (no read-modify-write in JS). Returns the updated rating.
+   */
+  async addRating(productId, stars) {
+    const sum = { $add: [{ $ifNull: ['$rating.sum', 0] }, stars] };
+    const count = { $add: [{ $ifNull: ['$rating.count', 0] }, 1] };
+    const doc = await Product.findOneAndUpdate(
+      { _id: productId },
+      [
+        {
+          $set: {
+            'rating.sum': sum,
+            'rating.count': count,
+            'rating.avg': { $round: [{ $divide: [sum, count] }, 2] },
+          },
+        },
+      ],
+      { new: true, projection: { rating: 1 } },
+    ).lean();
+    return doc?.rating ?? null;
+  },
+
+  /** A product that exists and is not deleted (inactive is fine for reviews). */
+  findNotDeleted(id) {
+    return Product.findOne({ _id: id, deletedAt: null }).lean();
+  },
+
   /** Put qty back (cancel or compensation). Works on deleted products too. */
   async releaseStock({ productId, variantSku, qty }) {
     const res = variantSku

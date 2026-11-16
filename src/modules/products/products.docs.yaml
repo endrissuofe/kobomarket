@@ -85,6 +85,34 @@ paths:
         '204': { description: Deleted (hidden everywhere, kept for order history) }
         '404': { description: Not found, already deleted, or owned by another vendor }
 
+  /api/v1/products/{id}/reviews:
+    post:
+      tags: [Products]
+      summary: Review a product you received (buyer)
+      description: >
+        Only buyers with a COMPLETED order containing the product may review it,
+        once per product. The product's rating (avg, count) updates at once.
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [rating]
+              additionalProperties: false
+              properties:
+                rating: { type: integer, minimum: 1, maximum: 5 }
+                comment: { type: string, maxLength: 2000 }
+      responses:
+        '201': { description: '{ review, productRating: { avg, count } }' }
+        '403': { description: REVIEW_NOT_ALLOWED (no completed order for this product) }
+        '404': { description: Product not found or deleted }
+        '409': { description: ALREADY_REVIEWED }
+        '422': { description: VALIDATION_ERROR (rating must be a whole number 1-5) }
+
   /api/v1/vendors/me/products:
     get:
       tags: [Products]

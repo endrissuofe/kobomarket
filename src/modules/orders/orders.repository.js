@@ -225,6 +225,20 @@ const ordersRepository = {
     );
   },
 
+  /**
+   * A COMPLETED sub-order of this buyer that contains the product, or null.
+   * This is what makes a buyer allowed to review it.
+   */
+  async findCompletedPurchase(conn, { buyerId, productId }) {
+    const row = await conn('order_items as i')
+      .join('sub_orders as s', 's.id', 'i.sub_order_id')
+      .join('orders as o', 'o.id', 's.order_id')
+      .where({ 'o.buyer_id': buyerId, 'i.product_id': productId, 's.status': 'COMPLETED' })
+      .orderBy('s.completed_at', 'desc')
+      .first('s.id');
+    return row ? row.id : null;
+  },
+
   /** Items of these sub-orders (for restocking). */
   async itemsOfSubOrders(conn, subOrderIds) {
     if (subOrderIds.length === 0) return [];

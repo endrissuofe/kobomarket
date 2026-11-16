@@ -41,9 +41,12 @@ const productSchema = new Schema(
     variants: { type: [variantSchema], default: [] },
     tags: { type: [String], default: [] },
     images: { type: [String], default: [] },
+    // Kept by one atomic update per review (see productsRepository.addRating):
+    // sum and count of star ratings, and avg = sum / count rounded to 2 places.
     rating: {
       avg: { type: Number, default: 0 },
       count: { type: Number, default: 0 },
+      sum: { type: Number, default: 0 },
     },
     isActive: { type: Boolean, default: true },
     deletedAt: { type: Date, default: null },
@@ -64,6 +67,7 @@ productSchema.set('toJSON', {
   flattenMaps: true,
   transform(doc, ret) {
     ret.id = String(ret._id);
+    if (ret.rating) delete ret.rating.sum;
     delete ret._id;
     delete ret.__v;
     return ret;

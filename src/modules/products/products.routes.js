@@ -4,6 +4,8 @@ const { requireAuth, requireRole } = require('../../shared/middleware/auth');
 const { idParams } = require('../../shared/http/schemas');
 const { productsController } = require('./products.controller');
 const schemas = require('./products.schemas');
+const { reviewsController } = require('../reviews/reviews.controller');
+const reviewSchemas = require('../reviews/reviews.schemas');
 
 const router = Router();
 const vendorOnly = [requireAuth, requireRole('vendor')];
@@ -18,5 +20,13 @@ router.patch(
   productsController.update,
 );
 router.delete('/:id', ...vendorOnly, validate({ params: idParams }), productsController.remove);
+// Buyers review products they received; eligibility is checked in the service.
+router.post(
+  '/:id/reviews',
+  requireAuth,
+  requireRole('buyer'),
+  validate({ params: idParams, body: reviewSchemas.createBody }),
+  reviewsController.create,
+);
 
 module.exports = router;
