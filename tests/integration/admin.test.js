@@ -47,9 +47,13 @@ describe('users: list, search, freeze', () => {
     } while (cursor);
     expect(seen).toEqual([...made].reverse());
 
+    // Make sure at least one vendor exists, even on a fresh database.
+    const vendor = await fundedVendor(app, 0);
     const vendors = await adminCall('get', '/users').query({ role: 'vendor', limit: 5 });
-    expect(vendors.body.data.items.every((u) => u.roles.includes('vendor'))).toBe(true);
-    expect(vendors.body.data.items[0]).not.toHaveProperty('passwordHash');
+    const items = vendors.body.data.items;
+    expect(items.map((u) => u.id)).toContain(vendor.userId);
+    expect(items.every((u) => u.roles.includes('vendor'))).toBe(true);
+    expect(items[0]).not.toHaveProperty('passwordHash');
   });
 
   test('search text is matched literally, not as a regex', async () => {
@@ -162,9 +166,17 @@ describe('wallets and transactions', () => {
     expect(txn).toMatchObject({ type: 'ESCROW_HOLD' });
     expect(txn.entries).toHaveLength(2);
 
-    const holds = await adminCall('get', '/transactions').query({ type: 'ESCROW_HOLD', limit: 3 });
-    expect(holds.body.data.items.every((t) => t.type === 'ESCROW_HOLD')).toBe(true);
-    expect(holds.body.data.nextCursor).toEqual(expect.any(String));
+    // At least this file's own two escrow holds exist, so limit 1 must page.
+    const holds = await adminCall('get', '/transactions').query({ type: 'ESCROW_HOLD', limit: 1 });
+    expect(holds.body.data.items).toHaveLength(1);
+    expect(holds.body.data.items[0].type).toBe('ESCROW_HOLD');
+    const next = await adminCall('get', '/transactions').query({
+      type: 'ESCROW_HOLD',
+      limit: 1,
+      cursor: holds.body.data.nextCursor,
+    });
+    expect(next.body.data.items[0].type).toBe('ESCROW_HOLD');
+    expect(next.body.data.items[0].id).not.toBe(holds.body.data.items[0].id);
   });
 });
 
@@ -240,7 +252,10 @@ describe('reports', () => {
   });
 
   test('top vendors this month, by completed sales, with store names', async () => {
-    const big = await completedSale(90_000_000); // NGN 900,000: tops any other test's sales
+    // Above any other test's sale, and above this test's own earlier runs this
+    // month (the local test database is shared): the amount grows with time.
+    const amount = 90_000_000 + (Math.floor(Date.now() / 1000) % 10_000_000);
+    const big = await completedSale(amount);
     const res = await adminCall('get', '/reports/top-vendors');
     expect(res.status).toBe(200);
     const { vendors } = res.body.data;
@@ -248,7 +263,7 @@ describe('reports', () => {
     expect(vendors[0]).toMatchObject({
       rank: 1,
       vendorId: big.vendorId,
-      salesKobo: 90_000_000,
+      salesKobo: amount,
       completedSubOrders: 1,
     });
     expect(vendors[0].storeName).toMatch(/^Test Store/);
