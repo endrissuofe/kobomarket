@@ -90,6 +90,28 @@ function createLedgerService({ db, repository }) {
     });
   }
 
+  /**
+   * Freeze or unfreeze a user's wallet (admin). post() refuses debits from a
+   * FROZEN user account, so a frozen user cannot spend or withdraw even if a
+   * caller forgot its own check. Credits (refunds) still arrive.
+   * Returns null if the user has no wallet yet.
+   */
+  async function setUserAccountStatus(userId, status, trx) {
+    const account = await findUserAccount(userId, trx);
+    if (!account) return null;
+    return repository.setAccountStatus(trx || db, account.id, status);
+  }
+
+  /** Every ledger transaction with its entries, newest first. */
+  function listTransactions({ type, reference, after, limit }, trx) {
+    return repository.listTransactions(trx || db, { type, reference, after, limit });
+  }
+
+  /** Accounts whose cached balance differs from their ledger sum. Should be empty. */
+  function reconciliation(trx) {
+    return repository.balanceMismatches(trx || db);
+  }
+
   /** An account's statement, newest first: { beforeId?, limit }. */
   function listEntries(accountId, { beforeId, limit }, trx) {
     return repository.listAccountEntries(trx || db, accountId, { beforeId, limit });
@@ -137,6 +159,9 @@ function createLedgerService({ db, repository }) {
     openUserAccount,
     findUserAccount,
     listEntries,
+    setUserAccountStatus,
+    listTransactions,
+    reconciliation,
     getSystemAccount,
     getAccount,
     audit,

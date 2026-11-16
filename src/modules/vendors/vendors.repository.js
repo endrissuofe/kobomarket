@@ -10,6 +10,10 @@ const vendorsRepository = {
     return Vendor.findById(id).lean();
   },
 
+  findByIds(ids) {
+    return Vendor.find({ _id: { $in: ids } }, { storeName: 1, slug: 1, userId: 1 }).lean();
+  },
+
   findByUserId(userId) {
     return Vendor.findOne({ userId }).lean();
   },

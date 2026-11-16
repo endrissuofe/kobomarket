@@ -98,6 +98,44 @@ function createLedgerRepository() {
       }));
     },
 
+    /** Freeze or unfreeze an account. A FROZEN user account refuses debits in post(). */
+    async setAccountStatus(db, accountId, status) {
+      const [row] = await db('accounts').where({ id: accountId }).update({ status }).returning('*');
+      return toAccount(row) || null;
+    },
+
+    /**
+     * All ledger transactions, newest first, each with its entries. Keyset on
+     * (created_at, id), with created_at carried as Postgres text so the
+     * microseconds survive the cursor.
+     */
+    async listTransactions(db, { type, reference, after, limit }) {
+      const query = db('transactions')
+        .select('*', db.raw('created_at::text AS created_at_text'))
+        .orderBy([
+          { column: 'created_at', order: 'desc' },
+          { column: 'id', order: 'desc' },
+        ])
+        .limit(limit);
+      if (type) query.where({ type });
+      if (reference) query.where({ reference });
+      if (after)
+        query.whereRaw('(created_at, id) < (?::timestamptz, ?::uuid)', [after.t, after.id]);
+      const txns = await query;
+      if (txns.length === 0) return [];
+      const entries = await db('ledger_entries')
+        .whereIn(
+          'transaction_id',
+          txns.map((t) => t.id),
+        )
+        .orderBy('id');
+      return txns.map((t) => ({
+        ...toTransaction(t),
+        cursorTime: t.created_at_text,
+        entries: entries.filter((e) => e.transaction_id === t.id).map(toEntry),
+      }));
+    },
+
     async findAccountById(db, id) {
       return toAccount(await db('accounts').where({ id }).first()) || null;
     },

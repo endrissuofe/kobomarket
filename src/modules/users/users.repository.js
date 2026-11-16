@@ -32,6 +32,29 @@ const usersRepository = {
       .lean();
   },
 
+  /**
+   * Admin user search, newest first, keyset on _id. q matches the start of the
+   * email or any part of the name, case-insensitive (regex-escaped).
+   */
+  search({ q, role, status, beforeId, limit }) {
+    const filter = {};
+    if (q) {
+      const safe = q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      filter.$or = [{ email: new RegExp(`^${safe}`, 'i') }, { name: new RegExp(safe, 'i') }];
+    }
+    if (role) filter.roles = role;
+    if (status) filter.status = status;
+    if (beforeId) filter._id = { $lt: beforeId };
+    return User.find(filter).sort({ _id: -1 }).limit(limit);
+  },
+
+  setFrozen(id, { frozen, by, reason }) {
+    const $set = frozen
+      ? { status: 'FROZEN', frozenAt: new Date(), frozenBy: by, frozenReason: reason }
+      : { status: 'ACTIVE', frozenAt: null, frozenBy: null, frozenReason: null };
+    return User.findByIdAndUpdate(id, { $set }, { new: true });
+  },
+
   setWalletStatus(id, walletStatus) {
     return User.updateOne({ _id: id }, { $set: { walletStatus } });
   },

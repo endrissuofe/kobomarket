@@ -17,6 +17,10 @@ const userSchema = new Schema(
     },
     emailVerifiedAt: { type: Date, default: null },
     status: { type: String, enum: Object.values(USER_STATUS), default: USER_STATUS.ACTIVE },
+    // Set by an admin freeze; cleared on unfreeze.
+    frozenAt: { type: Date, default: null },
+    frozenBy: { type: Schema.Types.ObjectId, ref: 'User', default: null },
+    frozenReason: { type: String, default: null },
     walletStatus: {
       type: String,
       enum: Object.values(WALLET_STATUS),

@@ -19,6 +19,17 @@ const ANY_ID = '0123456789abcdef01234567';
 const ANY_UUID = '00000000-0000-4000-8000-000000000000';
 
 const ADMIN_ROUTES = [
+  ['get', '/api/v1/admin/users', undefined],
+  ['patch', `/api/v1/admin/users/${ANY_ID}/freeze`, { reason: 'no reason at all' }],
+  ['patch', `/api/v1/admin/users/${ANY_ID}/unfreeze`, undefined],
+  ['get', `/api/v1/admin/wallets/${ANY_UUID}/ledger`, undefined],
+  ['get', '/api/v1/admin/transactions', undefined],
+  ['get', '/api/v1/admin/settings', undefined],
+  ['patch', '/api/v1/admin/settings/commission', { commissionBps: 0 }],
+  ['get', '/api/v1/admin/reports/revenue?from=2026-11-01&to=2026-11-02', undefined],
+  ['get', '/api/v1/admin/reports/top-vendors', undefined],
+  ['get', '/api/v1/admin/reports/escrow', undefined],
+  ['get', '/api/v1/admin/reports/reconciliation', undefined],
   ['get', '/api/v1/disputes', undefined],
   ['get', `/api/v1/disputes/${ANY_UUID}`, undefined],
   [

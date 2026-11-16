@@ -93,6 +93,7 @@ function createApp(options = {}) {
   app.use('/api/v1/disputes', require('./modules/disputes/disputes.routes'));
   app.use('/api/v1/payouts', require('./modules/payouts/payouts.routes'));
   app.use('/api/v1/notifications', require('./modules/notifications/notifications.routes'));
+  app.use('/api/v1/admin', require('./modules/admin/admin.routes'));
 
   app.use(notFoundHandler);
   app.use(errorHandler);
