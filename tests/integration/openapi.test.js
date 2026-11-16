@@ -62,3 +62,17 @@ test('Swagger UI is at /api-docs and the raw document at /api-docs.json', async 
   expect(json.body.info.title).toBe('KoboMarket API');
   expect(json.body.paths['/api/v1/orders/checkout'].post).toBeDefined();
 });
+
+test('the committed Postman collection matches the API docs (run npm run postman:generate)', () => {
+  const fs = require('node:fs');
+  const { serialize, OUT } = require('../../scripts/generate-postman');
+  expect(fs.readFileSync(OUT, 'utf8')).toBe(serialize());
+
+  const collection = JSON.parse(serialize());
+  const endpoints = collection.item[1].item.flatMap((folder) => folder.item);
+  const operations = Object.values(buildSpec().paths).reduce(
+    (n, ops) => n + Object.keys(ops).length,
+    0,
+  );
+  expect(endpoints).toHaveLength(operations);
+});

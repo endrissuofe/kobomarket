@@ -25,6 +25,7 @@ Every demo account's password is `KoboMarket#2026`. Demo data only: it refuses t
 - API: http://localhost:3000
 - Health: http://localhost:3000/health
 - API docs (Swagger UI): http://localhost:3000/api-docs · raw OpenAPI JSON: http://localhost:3000/api-docs.json
+- Postman: import [`docs/postman/KoboMarket.postman_collection.json`](docs/postman/KoboMarket.postman_collection.json). Its **Demo flow** folder runs the whole story on the seed data (fund → checkout → ship → confirm → payout → dispute → reports), saving ids as it goes; `npm run postman:demo` runs it from the command line. **All endpoints** has every operation.
 
 ### Running without Docker
 

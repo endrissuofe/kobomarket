@@ -62,6 +62,10 @@ jobs:
         run: |
           docker compose exec -T api npm run seed
           docker compose exec -T api npm run seed
+      # The Postman demo flow end to end on the seeded data (newman), with the
+      # worker running: fund, checkout, ship, confirm, payout, dispute, reports.
+      - name: Postman demo flow
+        run: docker compose exec -T api npm run postman:demo
       - name: Ledger audit (money is conserved after the tests)
         run: docker compose exec -T api npm run audit:ledger
       - if: failure()
