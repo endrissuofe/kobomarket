@@ -1,0 +1,181 @@
+# OpenAPI fragment for admin (users, wallets, transactions, settings, reports).
+# Vendor review lives in vendors.docs.yaml. Every route is admin-only.
+paths:
+  /api/v1/admin/users:
+    get:
+      tags: [Admin]
+      summary: List and search users, newest first
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - {
+            name: q,
+            in: query,
+            schema: { type: string },
+            description: Start of the email,
+            or part of the name,
+          }
+        - { name: role, in: query, schema: { type: string, enum: [buyer, vendor, admin] } }
+        - { name: status, in: query, schema: { type: string, enum: [ACTIVE, FROZEN] } }
+        - { name: limit, in: query, schema: { type: integer } }
+        - { name: cursor, in: query, schema: { type: string } }
+      responses:
+        '200': { description: '{ items: User[], nextCursor }' }
+
+  /api/v1/admin/users/{id}/freeze:
+    patch:
+      tags: [Admin]
+      summary: Freeze a user (no orders, no withdrawals)
+      description: >
+        Sets the user FROZEN in MongoDB and their wallet FROZEN in PostgreSQL, so
+        the ledger itself refuses their debits. Refunds can still arrive. Safe to repeat.
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [reason]
+              properties: { reason: { type: string, minLength: 5, maxLength: 500 } }
+      responses:
+        '200': { description: '{ user, walletStatus }' }
+        '404': { description: User not found }
+        '409': { description: CANNOT_FREEZE_SELF }
+
+  /api/v1/admin/users/{id}/unfreeze:
+    patch:
+      tags: [Admin]
+      summary: Unfreeze a user
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      responses:
+        '200': { description: '{ user, walletStatus }' }
+
+  /api/v1/admin/wallets/{id}/ledger:
+    get:
+      tags: [Admin]
+      summary: Any wallet (user or system account) and its full ledger history
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - {
+            name: id,
+            in: path,
+            required: true,
+            schema: { type: string, format: uuid },
+            description: Account id,
+          }
+        - { name: limit, in: query, schema: { type: integer } }
+        - { name: cursor, in: query, schema: { type: string } }
+      responses:
+        '200':
+          {
+            description: '{ account, items: [{ id, transactionId, type, reference, direction, amountKobo, createdAt }], nextCursor }',
+          }
+        '404': { description: Account not found }
+
+  /api/v1/admin/transactions:
+    get:
+      tags: [Admin]
+      summary: All ledger transactions with their entries, newest first
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: type
+          in: query
+          schema:
+            type: string
+            enum:
+              [
+                FUNDING,
+                ESCROW_HOLD,
+                ESCROW_RELEASE,
+                REFUND,
+                PAYOUT_HOLD,
+                PAYOUT_SETTLE,
+                PAYOUT_REVERSAL,
+              ]
+        - { name: reference, in: query, schema: { type: string } }
+        - { name: limit, in: query, schema: { type: integer } }
+        - { name: cursor, in: query, schema: { type: string } }
+      responses:
+        '200':
+          {
+            description: '{ items: [{ id, reference, type, metadata, createdAt, entries[] }], nextCursor }',
+          }
+
+  /api/v1/admin/settings:
+    get:
+      tags: [Admin]
+      summary: Live business settings
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200': { description: '{ settings: { commissionBps, escrowTimeoutHours, payoutMinKobo } }' }
+
+  /api/v1/admin/settings/commission:
+    patch:
+      tags: [Admin]
+      summary: Set the commission rate for future checkouts
+      description: Basis points (500 = 5%), 0 to 5000. Existing sub-orders keep the rate snapshotted at checkout.
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [commissionBps]
+              additionalProperties: false
+              properties: { commissionBps: { type: integer, minimum: 0, maximum: 5000 } }
+      responses:
+        '200': { description: '{ settings }' }
+        '422': { description: VALIDATION_ERROR }
+
+  /api/v1/admin/reports/revenue:
+    get:
+      tags: [Admin reports]
+      summary: Platform revenue per day for a date range (Lagos days)
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: from, in: query, required: true, schema: { type: string, format: date } }
+        - { name: to, in: query, required: true, schema: { type: string, format: date } }
+      responses:
+        '200':
+          {
+            description: '{ from, to, timezone, totalKobo, days: [{ day, revenueKobo, entries }] } (every day included)',
+          }
+        '422': { description: Bad dates, from after to, or more than 366 days }
+
+  /api/v1/admin/reports/top-vendors:
+    get:
+      tags: [Admin reports]
+      summary: Top 10 vendors by completed sales this month (net of partial refunds)
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          {
+            description: '{ timezone, vendors: [{ rank, vendorId, storeName, completedSubOrders, salesKobo }] }',
+          }
+
+  /api/v1/admin/reports/escrow:
+    get:
+      tags: [Admin reports]
+      summary: Money currently held in escrow, beside the unfinished sub-orders behind it
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          {
+            description: '{ escrowBalanceKobo, openSubOrders: { totalKobo, byStatus[] }, matches }',
+          }
+
+  /api/v1/admin/reports/reconciliation:
+    get:
+      tags: [Admin reports]
+      summary: Wallets whose cached balance differs from their ledger sum (should be empty)
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          {
+            description: '{ ok, mismatches: [{ accountId, ownerType, ownerId, balanceKobo, ledgerKobo }] }',
+          }
