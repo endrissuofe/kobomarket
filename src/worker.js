@@ -15,6 +15,7 @@ const { runCompensationRetry } = require('./jobs/compensation-retry');
 const { runIdempotencyCleanup } = require('./jobs/idempotency-cleanup');
 const { runPayoutProcessor } = require('./jobs/payout-processor');
 const { handleEvent } = require('./jobs/event-handlers');
+const { registerNotificationHandlers } = require('./modules/notifications/notifications.handlers');
 
 const EVENT_ATTEMPTS = 5;
 
@@ -48,6 +49,7 @@ function publishEvent(event) {
 const workers = [];
 
 async function start() {
+  registerNotificationHandlers();
   await mongo.connect();
   await postgres.ping();
 
