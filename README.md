@@ -42,11 +42,31 @@ src/
 migrations/   seeds/   scripts/   tests/   docs/
 ```
 
+## Why two databases
+
+I use two databases because KoboMarket keeps two very different kinds of data.
+
+**MongoDB is the shop window.** It holds users, vendor stores, products (with their variants and stock), carts, reviews and notifications. This data changes shape often: one product has sizes and colours, another has none, and a store can gain new fields. MongoDB lets each document carry what it needs without a migration every time, and its text search and flexible filters suit the product catalogue.
+
+**PostgreSQL is the bank vault.** It holds wallets, the double-entry ledger, orders and sub-orders, disputes, payouts and settings. Money needs strict rules, and PostgreSQL enforces them itself, even if my code has a bug:
+
+- **Transactions:** a checkout either happens completely or not at all.
+- **Row locks** (`SELECT ... FOR UPDATE`): two payments cannot spend the same naira.
+- **Constraints and triggers:** amounts are whole kobo in `BIGINT`, every transaction must balance to zero, and ledger rows can never be edited or deleted.
+
+**The rule between them: money lives only in PostgreSQL.** MongoDB never holds a balance. A product price in MongoDB is only the catalogue price; what the buyer actually paid is copied into PostgreSQL at checkout (`order_items.unit_price_kobo`). The two sides are linked by IDs: a PostgreSQL account stores the MongoDB user's `_id` as `owner_id`.
+
+**The cost:** one checkout touches both databases, so they could get out of step if one save works and the other fails. I handle that this way:
+
+1. Reserve the stock in MongoDB first, then take the money in PostgreSQL.
+2. If the PostgreSQL step fails, put the stock back.
+3. If putting it back also fails, save a `compensations` record that a background job retries.
+4. Every follow-up event is written to an `outbox_events` table in the same PostgreSQL transaction, so no event is lost even if Redis is down.
+
 ## Sections still to write
 
 - Architecture diagram
 - PostgreSQL ERD and MongoDB collections
-- Why two databases
 - Cross-database consistency, concurrency and idempotency
 - Running tests and `npm run audit:ledger`
 - Known limitations
