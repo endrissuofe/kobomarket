@@ -7,32 +7,11 @@ const SwaggerParser = require('@apidevtools/swagger-parser');
 const { createApp } = require('../../src/app');
 const { buildSpec } = require('../../src/docs/openapi');
 const postgres = require('../../src/db/postgres');
+const { expressRoutes } = require('../helpers/routes');
 
 afterAll(() => postgres.close());
 
 const app = createApp();
-
-/** Every [METHOD, path] the Express app serves, with :param written as {param}. */
-function expressRoutes(expressApp) {
-  const routes = [];
-  const mountPath = (layer) =>
-    layer.regexp.source.replace(/^\^/, '').replace('\\/?(?=\\/|$)', '').replace(/\\\//g, '/');
-  const walk = (stack, prefix) => {
-    for (const layer of stack) {
-      if (layer.route) {
-        for (const method of Object.keys(layer.route.methods)) {
-          routes.push([method, `${prefix}${layer.route.path}`]);
-        }
-      } else if (layer.name === 'router' && layer.handle.stack) {
-        walk(layer.handle.stack, prefix + mountPath(layer));
-      }
-    }
-  };
-  walk(expressApp._router.stack, '');
-  return routes
-    .map(([m, p]) => [m, p.replace(/\/$/, '').replace(/:(\w+)/g, '{$1}')])
-    .filter(([, p]) => !p.startsWith('/api-docs'));
-}
 
 const key = ([method, path]) => `${method.toUpperCase()} ${path}`;
 
@@ -45,7 +24,7 @@ test('every route the app serves is documented, and every documented route exist
   const documented = Object.entries(spec.paths).flatMap(([path, ops]) =>
     Object.keys(ops).map((method) => key([method, path])),
   );
-  const served = expressRoutes(app).map(key);
+  const served = expressRoutes(app).map((r) => key([r.method, r.path]));
 
   expect(served.length).toBeGreaterThan(50);
   expect([...new Set(served)].filter((r) => !documented.includes(r)).sort()).toEqual([]);
@@ -75,4 +54,30 @@ test('the committed Postman collection matches the API docs (run npm run postman
     0,
   );
   expect(endpoints).toHaveLength(operations);
+});
+
+test("every endpoint in the brief's list (SCOPE §15) is served: none may be removed", () => {
+  const fs = require('node:fs');
+  const scope = fs.readFileSync(
+    require('node:path').join(__dirname, '../../docs/SCOPE.md'),
+    'utf8',
+  );
+  const section = scope.slice(scope.indexOf('## 15.'), scope.indexOf('## 16.'));
+  const listed = [];
+  for (const row of section.split('\n').filter((l) => l.startsWith('| ') && !l.includes('---'))) {
+    const cell = row.split('|')[2] ?? '';
+    let method = null;
+    for (const [, m, p] of cell.matchAll(/`(?:(GET|POST|PATCH|PUT|DELETE) )?(\/[^`\s]+)`/g)) {
+      method = m ?? method;
+      if (method) listed.push(`${method} /api/v1${p.split('?')[0]}`);
+    }
+  }
+  // Compare with parameter names ignored: /orders/:id and /orders/{id} match.
+  const shape = (k) => k.replace(/[:{]\w+}?/g, '{}');
+  const served = new Set(expressRoutes(app).map((r) => shape(`${r.method} ${r.path}`)));
+
+  // The brief lists exactly 48 (7 auth, 4 users/vendors, 6 products, 4 cart, 4 wallet,
+  // 6 orders, 3 disputes, 2 payouts, 3 notifications, 9 admin): proves the parsing.
+  expect(listed).toHaveLength(48);
+  expect(listed.filter((k) => !served.has(shape(k)))).toEqual([]);
 });
