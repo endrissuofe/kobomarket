@@ -1,4 +1,4 @@
-// SCOPE §13: structured logs with a request ID on every line, and no
+// Structured logs with a request ID on every line, and no
 // passwords or tokens in them. Captures the real log output of one request
 // through the full app, including a line written deep inside a service.
 process.env.NODE_ENV = 'test';

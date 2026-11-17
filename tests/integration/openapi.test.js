@@ -56,28 +56,19 @@ test('the committed Postman collection matches the API docs (run npm run postman
   expect(endpoints).toHaveLength(operations);
 });
 
-test("every endpoint in the brief's list (SCOPE §15) is served: none may be removed", () => {
-  const fs = require('node:fs');
-  const scope = fs.readFileSync(
-    require('node:path').join(__dirname, '../../docs/SCOPE.md'),
-    'utf8',
-  );
-  const section = scope.slice(scope.indexOf('## 15.'), scope.indexOf('## 16.'));
-  const listed = [];
-  for (const row of section.split('\n').filter((l) => l.startsWith('| ') && !l.includes('---'))) {
-    const cell = row.split('|')[2] ?? '';
-    let method = null;
-    for (const [, m, p] of cell.matchAll(/`(?:(GET|POST|PATCH|PUT|DELETE) )?(\/[^`\s]+)`/g)) {
-      method = m ?? method;
-      if (method) listed.push(`${method} /api/v1${p.split('?')[0]}`);
-    }
-  }
+test("every endpoint in the brief's list is served: none may be removed", () => {
+  // The 48 endpoints the brief lists, kept in tests/fixtures/required-endpoints.json.
+  const required = require('../fixtures/required-endpoints.json');
+  const listed = required.map((line) => {
+    const [method, path] = line.split(' ');
+    return `${method} /api/v1${path}`;
+  });
   // Compare with parameter names ignored: /orders/:id and /orders/{id} match.
   const shape = (k) => k.replace(/[:{]\w+}?/g, '{}');
   const served = new Set(expressRoutes(app).map((r) => shape(`${r.method} ${r.path}`)));
 
   // The brief lists exactly 48 (7 auth, 4 users/vendors, 6 products, 4 cart, 4 wallet,
-  // 6 orders, 3 disputes, 2 payouts, 3 notifications, 9 admin): proves the parsing.
+  // 6 orders, 3 disputes, 2 payouts, 3 notifications, 9 admin).
   expect(listed).toHaveLength(48);
   expect(listed.filter((k) => !served.has(shape(k)))).toEqual([]);
 });

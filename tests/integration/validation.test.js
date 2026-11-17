@@ -1,4 +1,4 @@
-// SCOPE §13: every request body and query is validated with Zod.
+// Every request body and query is validated with Zod.
 // Each route must run validate() on exactly the parts its API docs say it
 // takes (path params, query, body). The few routes with no input at all are
 // listed, with the reason; the docs must agree that they take none.
